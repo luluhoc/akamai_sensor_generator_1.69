@@ -859,7 +859,7 @@ getpass@^0.1.1:
   dependencies:
     assert-plus "^1.0.0"
 
-ghost-cursor@^1.0.3:
+ghost-cursor@^1.1.8:
   version "1.1.8"
   resolved "https://registry.yarnpkg.com/ghost-cursor/-/ghost-cursor-1.1.8.tgz#053bbf6e52ac33474e51b1c38e82a8a6635c6e8a"
   integrity sha512-+tir6Dc/wVQ4TAOC8Ip0r860GC1jVfG84rQLOZvZ7xOHjSCaiS8HWNr/24FhmvKNfUN6/CB6LPoys0pAPFxhsA==

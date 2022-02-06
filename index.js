@@ -234,10 +234,10 @@ app.on('ready', async () => {
 				"safari"
 		],
 		devices: [
-				"desktop"
+				"mobile"
 		],
 		operatingSystems: [
-				"windows"
+				"ios"
 		]
 	});
 	
@@ -246,6 +246,7 @@ app.on('ready', async () => {
 	var site = 'zalandouk';
 	site = websites.find(w => w.name === site);
 	var userAgent = fingerprint.userAgent.replace(/\\|"/g, "")
+	console.log(fingerprint)
 	var ua_browser = userAgent.toString().replace(/\\|"/g, "").indexOf("Chrome") > -1 ? "chrome" : userAgent.toString().replace(/\\|"/g, "").indexOf("Safari") > -1 ? "safari" : userAgent.toString().replace(/\\|"/g, "").indexOf("Firefox") > -1 ? "firefox" : "ie";
 	akamaiSession.setUserAgent(userAgent);
 	akamaiSession2.setUserAgent(userAgent);
@@ -290,6 +291,8 @@ app.on('ready', async () => {
 	
 
 	async function init(site, userAgent, ua_browser, proxy, abck, post_url, formInfo){
+		console.log('isABCK');
+		console.log(abck);
 		// akamaiSession.cookies.get({})
         //   .then((cookies) => {
 		// 	  console.log(cookies)
@@ -368,7 +371,7 @@ app.on('ready', async () => {
 				z: -1
 			};
 			// return bmak;
-		abck == null ? await switcher('minimal', bmak) : await switcher('nomouse', bmak);
+		abck == null ? await switcher('nomouse', bmak) : await switcher('nomouse', bmak);
 		// await switcher('nomouse', bmak);
 		abck == null ? get_abck(site, bmak, userAgent, ua_browser, proxy) : sensorGen(bmak, abck, ua_browser, userAgent, proxy, site, post_url);
 	}
@@ -529,13 +532,13 @@ app.on('ready', async () => {
 			"-1,2,-94,-108," + // GIT
 			//bmak.kact // if no active elemeent
 			"-1,2,-94,-110," + // git
-			bmak.genmouse + //OR EMPTY MOUSE => "0,1," + mm + ',' + kk + ',' + ll + ';' + // TODO: to check
+			// bmak.genmouse + //OR EMPTY MOUSE => "0,1," + mm + ',' + kk + ',' + ll + ';' + // TODO: to check
 			"-1,2,-94,-117," + // GIT
 			//bmak.tact // GIT TODO: to check
 			"-1,2,-94,-111," + // GIT
-			// cdoa(bmak) + // GIT touch events
+			cdoa(bmak) + // GIT touch events
 			"-1,2,-94,-109," +
-			// cdma(bmak) + // GIT device orientation events
+			cdma(bmak) + // GIT device orientation events
 			"-1,2,-94,-114," +
 			//bmak.pact //  chyba git pointer up down
 			"-1,2,-94,-103," + // GIT
@@ -596,7 +599,7 @@ app.on('ready', async () => {
 		console.log(`https://${site.host}/${post_url}`)
 		var options = {
 			'method': 'POST',
-			'url': `https://www.zalando.pl/1Ik1mj4b_vkD/FE4PJJq0it/_t/3wp16kuXV3/CQd7MApEZw/QX1MP/BxrbRM`, 
+			'url': `https://www.zalando.pl/VJOBKeYwQ/lW35/Ygrrg/fOp3tQ5bpu/WWdFNA/NB/VcZxQfEDg`, 
 			'session': akamaiSession2,
 			'useSessionCookies': true,
 			'hostname': site.host,
@@ -965,18 +968,19 @@ app.on('ready', async () => {
 	 */
 // DONE GIT ADDED CHECK IF NAVIGATOR IS BRAVE
 	function gd(ua_browser, userAgent, bmak) {
-		var screen_size = screenSize(),
+		var screen_size = Object.values(fingerprint.screen),
 			a = userAgent,
 			t = "" + ab(a),
 			e = bmak.start_ts / 2,
 			n = screen_size[0],
 			o = screen_size[1],
-			m = screen_size[2],
-			r = screen_size[3],
-			i = screen_size[4],
-			c = screen_size[5],
-			b = screen_size[6];
+			m = screen_size[0],
+			r = screen_size[1],
+			i = screen_size[0],
+			c = screen_size[1],
+			b = screen_size[0];
 		bmak.z1 = parseInt(bmak.start_ts / (2016 * 2016));
+		console.log(screen_size)
 		var d = Math.random(),
 			k = parseInt((1e3 * d) / 2),
 			l = d + "";
@@ -1432,12 +1436,14 @@ app.on('ready', async () => {
 			loop_amount = 100,
 			generated = ghost_cursor({ x: lodash.random(100, 200), y: lodash.random(70, 230) }, { x: lodash.random(500, 800), y: lodash.random(470, 750) }),
 			path = (generated.length > 100) ? generated : ghost_cursor({ x: lodash.random(100, 200), y: lodash.random(70, 230) }, { x: lodash.random(500, 800), y: lodash.random(470, 750) });
-		for (var i = 0; i <= loop_amount; i++) {
+			console.log(path.length)
+			console.log(path)
+		for (var i = 0; i < path.length; i++) {
 			let point = path[i];
 				x = Math.round(point.x),
 				y = Math.round(point.y);
 			timeStamp = timeStamp + lodash.random(0, 2);
-			if (i == loop_amount) {
+			if (i == path.length) {
 				bmak.me_cnt = lodash.random(200, 1400),
 				mouseString = mouseString + bmak.me_cnt + ',3,' + timeStamp + ',' + x + ',' + y + ',-1;';
 			} else {
@@ -1447,7 +1453,7 @@ app.on('ready', async () => {
 			}
 			mouseString = mouseString
 		}
-
+		console.log(mouseString)
 		return mouseString;
 	}
 
@@ -1465,8 +1471,10 @@ app.on('ready', async () => {
 		n = -1,
 		o = -1
 		bmak.genmouse = `${bmak.me_cnt},${t},${i},${n},${o},-1,it0;`;
+		console.log(bmak.genmouse)
 		bmak.vcact = `2,${lodash.random(3000, 5000)};`;
 		bmak.me_vel = i + t + n + o + bmak.me_cnt;
+		console.log(bmak.me_vel)
 		bmak.me_cnt++;
 		bmak.ta = timing;
 		bmak.updatet = timing + lodash.random(3000,5000);
@@ -1476,7 +1484,7 @@ app.on('ready', async () => {
 
 	function cdoa(bmak) {
 		try {
-			var t = get_cf_date() - bmak.start_ts + 105;
+			var t = get_cf_date() - bmak.start_ts + 20;
 			var e = getFloatVal(lodash.random(0, 360));
 			var n = getFloatVal(lodash.random(-180, 180));
 			var o = getFloatVal(lodash.random(-90, 90));

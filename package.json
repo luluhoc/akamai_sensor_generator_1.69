@@ -21,7 +21,7 @@
     "express": "^4.17.1",
     "fingerprint-generator": "^1.0.0",
     "fs": "0.0.1-security",
-    "ghost-cursor": "^1.0.3",
+    "ghost-cursor": "^1.1.8",
     "helmet": "^3.21.2",
     "jsdom": "^16.2.2",
     "mongoose": "^5.8.7",
