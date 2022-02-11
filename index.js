@@ -1,694 +1,489 @@
-const UserAgent = require('user-agents'),
-	fs = require('fs'),
-	ciphers = [
-        "AES128-SHA",
-        "AES256-SHA"
-	].join(":");
-	var url = require('url'),
-	path = require('path'),
-    cloudscraper = require('cloudscraper').defaults({ ciphers:ciphers}),
-	lodash = require('lodash'),
-	rp = require('request-promise'),
-	chalk = require('chalk'),
-	jsdom = require("jsdom"),
-	{ JSDOM } = jsdom,
-	randomstring = require("randomstring"),
-	uuidv4 = require('uuid/v4'),
-	websites = require('./websites.json'),
-	// browserData = require("./websites.json"),
-	logger = require("./libs/logger"),
-	proxies = fs.readFileSync('./proxy.txt', 'utf-8').toString().toLowerCase().split("\r\n").filter(l => l.length !== 0),
-	{app, session, net, BrowserWindow} = require('electron'),
-	originalConsoleError = console.error,
-	ghost_cursor = require("ghost-cursor").path;
-console.error = (e) => {
-	if (lodash.startsWith(e, '[vuex] unknown') || lodash.startsWith(e, 'Error: Could not parse CSS stylesheet')) return;
-	originalConsoleError(e)
-}
+"use strict";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
+Object.defineProperty(exports, "__esModule", { value: true });
+const fs_1 = __importDefault(require("fs"));
+const lodash_1 = __importDefault(require("lodash"));
+const websites_json_1 = __importDefault(require("./websites.json"));
+const logger_1 = __importDefault(require("./libs/logger"));
+const proxies = fs_1.default.readFileSync('./proxy.txt', 'utf-8').toString().toLowerCase().split("\r\n").filter(l => l.length !== 0);
+const electron_1 = require("electron");
+const ghost_cursor_1 = require("ghost-cursor");
+const ciphers = [
+    "AES128-SHA",
+    "AES256-SHA"
+].join(":");
+const originalConsoleError = console.error;
+const cloudscraper = require('cloudscraper').defaults({ ciphers: ciphers });
+const axios_1 = __importDefault(require("axios"));
 const tls = require('tls');
 const FingerprintGenerator = require('fingerprint-generator');
-
-
+const tough_cookie_1 = __importDefault(require("tough-cookie"));
+const http_cookie_agent_1 = require("http-cookie-agent");
+const data_1 = require("./data");
+console.error = (e) => {
+    if (lodash_1.default.startsWith(e, '[vuex] unknown') || lodash_1.default.startsWith(e, 'Error: Could not parse CSS stylesheet'))
+        return;
+    originalConsoleError(e);
+};
+// CIPHERS
 const defaultCiphers = tls.DEFAULT_CIPHERS.split(":");
 const shuffledCiphers = [
-  defaultCiphers[10],
-  defaultCiphers[0],
-  defaultCiphers[9],
-  defaultCiphers[8],
-  // Swap the 2nd & 3rd ciphers:
-  defaultCiphers[2],
-  defaultCiphers[3],
-  defaultCiphers[1],
-  ...defaultCiphers.slice(3),
+    defaultCiphers[10],
+    defaultCiphers[0],
+    defaultCiphers[9],
+    defaultCiphers[8],
+    // Swap the 2nd & 3rd ciphers:
+    defaultCiphers[2],
+    defaultCiphers[3],
+    defaultCiphers[1],
+    ...defaultCiphers.slice(3),
 ].join(":");
-
-
-const browserData = [
-	{
-		userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36',
-		resolutions: [
-      ['1098', '686', '1098', '686', '1098', '583', '1098'],
-      ['1280', '680', '1280', '720', '1280', '578', '1280'],
-      ['1440', '776', '1440', '900', '1440', '660', '1440'],
-      ['1440', '826', '1440', '900', '1440', '746', '1440'],
-      ['1440', '860', '1440', '900', '1440', '757', '1440'],
-      ['1440', '831', '1440', '900', '1440', '763', '1440'],
-      ['1440', '851', '1440', '900', '1420', '770', '1420'],
-      ['1440', '786', '1440', '900', '1440', '789', '1440'],
-      ['1440', '900', '1440', '900', '920', '789', '1440'],
-      ['1440', '900', '1440', '900', '1440', '821', '1440'],
-      ['1536', '824', '1536', '864', '1536', '722', '1536'],
-      ['1680', '972', '1680', '1050', '1680', '939', '1680'],
-      ['1680', '1020', '1680', '1050', '1680', '917', '1680'],
-      ['1920', '1040', '1920', '1080', '1920', '937', '1920'],
-      ['1920', '1040', '1920', '1080', '1920', '969', '1920'],
-      ['1920', '1080', '1920', '1080', '1920', '1007', '1920'],
-      ['2560', '1400', '2560', '1440', '2560', '1327', '2576'],
-      ['1024', '1024', '1024', '1024', '1024', '1024', '1024'],
-      ['1680', '973', '1680', '1050', '1133', '862', '1680'],
-      ['1680', '973', '1680', '1050', '1680', '862', '1680'],
-      ['1024', '768', '1024', '768', '1256', '605', '1272'],
-      ['1360', '728', '1360', '768', '1360', '625', '1358'],
-      ['1440', '797', '1440', '900', '1440', '685', '1440']
-    ],
-    canvas1: [-1151536724, -1152944628, -1259079336, -1618588580, -1752250632, -1752591854, -1880212897, -36060876, -434613739, -509993527, -52233038, -739578230, -746822318, 1112667908, 1454252292, 1544133244, 1637755981, 59688812, 73331404, 763748173],
-    canvas2: [-1849314799, 66351601, 1396487819],
-	},
-  {
-		userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36',
-		resolutions: [
-      ['1098', '686', '1098', '686', '1098', '583', '1098'],
-      ['1280', '680', '1280', '720', '1280', '578', '1280'],
-      ['1440', '776', '1440', '900', '1440', '660', '1440'],
-      ['1440', '826', '1440', '900', '1440', '746', '1440'],
-      ['1440', '860', '1440', '900', '1440', '757', '1440'],
-      ['1440', '831', '1440', '900', '1440', '763', '1440'],
-      ['1440', '851', '1440', '900', '1420', '770', '1420'],
-      ['1440', '786', '1440', '900', '1440', '789', '1440'],
-      ['1440', '900', '1440', '900', '920', '789', '1440'],
-      ['1440', '900', '1440', '900', '1440', '821', '1440'],
-      ['1536', '824', '1536', '864', '1536', '722', '1536'],
-      ['1680', '972', '1680', '1050', '1680', '939', '1680'],
-      ['1680', '1020', '1680', '1050', '1680', '917', '1680'],
-      ['1920', '1040', '1920', '1080', '1920', '937', '1920'],
-      ['1920', '1040', '1920', '1080', '1920', '969', '1920'],
-      ['1920', '1080', '1920', '1080', '1920', '1007', '1920'],
-      ['2560', '1400', '2560', '1440', '2560', '1327', '2576'],
-      ['1024', '1024', '1024', '1024', '1024', '1024', '1024'],
-      ['1680', '973', '1680', '1050', '1133', '862', '1680'],
-      ['1680', '973', '1680', '1050', '1680', '862', '1680'],
-      ['1024', '768', '1024', '768', '1256', '605', '1272'],
-      ['1360', '728', '1360', '768', '1360', '625', '1358'],
-      ['1440', '797', '1440', '900', '1440', '685', '1440']
-    ],
-    canvas1: [-1151536724, -1152944628, -1259079336, -1618588580, -1752250632, -1752591854, -1880212897, -36060876, -434613739, -509993527, -52233038, -739578230, -746822318, 1112667908, 1454252292, 1544133244, 1637755981, 59688812, 73331404, 763748173],
-    canvas2: [-1849314799, 66351601, 1396487819],
-	}
-]
-
-
-const voices = [
-	"Microsoft David - English (United States)_en-US",
-	"Microsoft Mark - English (United States)_en-US",
-	"Microsoft Zira - English (United States)_en-US",
-	"Alex_en-US",
-	"Alice_it-IT",
-	"Alva_sv-SE",
-	"Amelie_fr-CA",
-	"Anna_de-DE",
-	"Carmit_he-IL",
-	"Damayanti_id-ID",
-	"Daniel_en-GB",
-	"Diego_es-AR",
-	"Ellen_nl-BE",
-	"Fiona_en",
-	"Fred_en-US",
-	"Ioana_ro-RO",
-	"Joana_pt-PT",
-	"Jorge_es-ES",
-	"Juan_es-MX",
-	"Kanya_th-TH",
-	"Karen_en-AU",
-	"Kyoko_ja-JP",
-	"Laura_sk-SK",
-	"Lekha_hi-IN",
-	"Luca_it-IT",
-	"Luciana_pt-BR",
-	"Maged_ar-SA",
-	"Mariska_hu-HU",
-	"Mei-Jia_zh-TW",
-	"Melina_el-GR",
-	"Milena_ru-RU",
-	"Moira_en-IE",
-	"Monica_es-ES",
-	"Nora_nb-NO",
-	"Paulina_es-MX",
-	"Rishi_en-IN",
-	"Samantha_en-US",
-	"Sara_da-DK",
-	"Satu_fi-FI",
-	"Sin-ji_zh-HK",
-	"Tessa_en-ZA",
-	"Thomas_fr-FR",
-	"Ting-Ting_zh-CN",
-	"Veena_en-IN",
-	"Victoria_en-US",
-	"Xander_nl-NL",
-	"Yelda_tr-TR",
-	"Yuna_ko-KR",
-	"Yuri_ru-RU",
-	"Zosia_pl-PL",
-	"Zuzana_cs-CZ",
-	"Google Deutsch_de-DE",
-	"Google US English_en-US",
-	"Google UK English Female_en-GB",
-	"Google UK English Male_en-GB",
-	"Google español_es-ES",
-	"Google español de Estados Unidos_es-US",
-	"Google français_fr-FR",
-	"Google हिन्दी_hi-IN",
-	"Google Bahasa Indonesia_id-ID",
-	"Google italiano_it-IT",
-	"Google 日本語_ja-JP",
-	"Google 한국의_ko-KR",
-	"Google Nederlands_nl-NL",
-	"Google polski_pl-PL",
-	"Google português do Brasil_pt-BR",
-	"Google русский_ru-RU",
-	"Google 普通话（中国大陆）_zh-CN",
-	"Google 粤語（香港）_zh-HK",
-	"Google 國語（臺灣）_zh-TW"
-];
-
-const webglExt = [
-	"ANGLE_instanced_arrays",
-	"EXT_blend_minmax",
-	"EXT_color_buffer_half_float",
-	"EXT_disjoint_timer_query",
-	"EXT_float_blend",
-	"EXT_frag_depth",
-	"EXT_sRGB",
-	"EXT_shader_texture_lod",
-	"EXT_texture_compression_bptc",
-	"EXT_texture_compression_rgtc",
-	"EXT_texture_filter_anisotropic",
-	"KHR_parallel_shader_compile",
-	"OES_element_index_uint",
-	"OES_fbo_render_mipmap",
-	"OES_standard_derivatives",
-	"OES_texture_float",
-	"OES_texture_float_linear",
-	"OES_texture_half_float",
-	"OES_texture_half_float_linear",
-	"OES_vertex_array_object",
-	"WEBGL_color_buffer_float",
-	"WEBGL_compressed_texture_s3tc",
-	"WEBGL_compressed_texture_s3tc_srgb",
-	"WEBGL_debug_renderer_info",
-	"WEBGL_debug_shaders",
-	"WEBGL_depth_texture",
-	"WEBGL_draw_buffers",
-	"WEBGL_lose_context",
-	"WEBGL_multi_draw",
-	"WEBKIT_EXT_texture_filter_anisotropic",
-	"WEBKIT_WEBGL_compressed_texture_s3tc",
-	"WEBKIT_WEBGL_depth_texture",
-	"WEBKIT_WEBGL_lose_context"
-]
-let cookie_counter = 0,
-	akamaiSession,
-	akamaiSession2
-	dataNum = 0;
-	// dataNum = '-1818464567'
-app.allowRendererProcessReuse = false;
-app.commandLine.appendSwitch('disable-site-isolation-trials');
-
-app.on('ready', async () => {
-	akamaiSession = session.fromPartition('akamai', {cache: false});
-	akamaiSession2 = session.fromPartition('akamai2', {cache: false});
-
-	let fingerprintGenerator = new FingerprintGenerator({
-		browsers: [
-				{name: "firefox", minVersion: 80},
-				{name: "chrome", minVersion: 87},
-				"safari"
-		],
-		devices: [
-				"mobile"
-		],
-		operatingSystems: [
-				"ios"
-		]
-	});
-	
-	let { fingerprint, headers } = fingerprintGenerator.getFingerprint();
-
-	var site = 'zalandouk';
-	site = websites.find(w => w.name === site);
-	var userAgent = fingerprint.userAgent.replace(/\\|"/g, "")
-	console.log(fingerprint)
-	var ua_browser = userAgent.toString().replace(/\\|"/g, "").indexOf("Chrome") > -1 ? "chrome" : userAgent.toString().replace(/\\|"/g, "").indexOf("Safari") > -1 ? "safari" : userAgent.toString().replace(/\\|"/g, "").indexOf("Firefox") > -1 ? "firefox" : "ie";
-	akamaiSession.setUserAgent(userAgent);
-	akamaiSession2.setUserAgent(userAgent);
-	let win = new BrowserWindow({
-		show: false,
-		webPreferences: {
-			session: akamaiSession,
-			devTools: true
-		}
-	});
-	
-	await win.show()
-	await win.webContents.openDevTools();
-
-	
-	// win.loadURL(
-	// 	url.format({
-	// 	  pathname: path.join(__dirname, "index.html"),
-	// 	  protocol: "file:",
-	// 	  slashes: true
-	// 	})
-	//   );
-	await intercept()
-	setTimeout(async function(){
-		await win.loadURL(site.url, {userAgent: userAgent})
-	}, 1000)
-	// var userAgent = new UserAgent([/Chrome/, {deviceCategory: 'desktop', platform: 'MacIntel'}]).toString().replace(/\|"/g, "");
-	
-	var formInfo;
-	win.webContents.on('did-finish-load', async function() {
-		console.log('Finished loading')
-		formInfo = await getforminfo();
-		// controller(site, userAgent, ua_browser, null, null, null, formInfo)
-		init(site, userAgent, ua_browser, null, null, null, formInfo)
-	});
-
-	async function controller(site, userAgent, ua_browser, proxy, abck, post_url, formInfo){
-		var bmak = await init(site, userAgent, ua_browser, proxy, abck, post_url, formInfo);
-		var initialCookie = await get_abck(site, bmak, userAgent, ua_browser, proxy);
-
-	}
-	
-
-	async function init(site, userAgent, ua_browser, proxy, abck, post_url, formInfo){
-		console.log('isABCK');
-		console.log(abck);
-		// akamaiSession.cookies.get({})
-        //   .then((cookies) => {
-		// 	  console.log(cookies)
-		//   })
-		var bmak = {
-				aj_indx: 0,
-				aj_type: 0,
-				den: 0,
-				dmact: 0,
-				dme_vel: 0,
-				doact: 0,
-				doe_cnt: 0,
-				doe_vel: 0,
-				formInfo: formInfo,
-				fpValstr: "",
-				fmh: "",
-				fmz: 1,
-				ssh: "",
-				genmouse: "",
-				getmr: "",
-				lang: "-",
-				loc: "",
-				brv: 0, // check if brave
-				me_cnt: 0,
-				me_vel: 0,
-				mn_abck: "",
-				mn_al: [],
-				mn_cc: "",
-				mn_cd: 1000,
-				mn_ct: 1,
-				mn_il: [],
-				mn_lc: [],
-				mn_lcl: 0,
-				mn_ld: [],
-        mn_lg: [],
-				mn_mc_indx: 0,
-				mn_mc_lmt: 10,
-				mn_psn: "",
-				mn_r: [],
-				mn_sen: 0,
-				mn_state: 0,
-				mn_stout: 1e3,
-				mn_tcl: [],
-				mn_tout: 100,
-				mn_ts: "",
-				nav_perm: "",
-				n_ck: 0,
-				p: 0,
-				pen: -1,
-				pe_cnt: 0,
-				plen: -1,
-				js_post: !0,
-				prod: "-",
-				psub: "-",
-				s: 0,
-				sensor_data: 0,
-				start_ts: get_cf_date(true),
-				ta: 0,
-				td: 0,
-				te_vel: 0,
-				hbCalc: !0,
-				tst: -1,
-				type: '',
-				ua_browser: ua_browser,
-				updatet: 0,
-				vcact: "",
-				ver: site.ver,
-				wen: 0,
-				weh: "",
-				wl: 0,
-				wv: "",
-			  wr: "",
-				xagg: -1,
-				y: Math.floor(1e3 * Math.random()).toString(),
-				z1: 0,
-				z: -1
-			};
-			// return bmak;
-		abck == null ? await switcher('nomouse', bmak) : await switcher('nomouse', bmak);
-		// await switcher('nomouse', bmak);
-		abck == null ? get_abck(site, bmak, userAgent, ua_browser, proxy) : sensorGen(bmak, abck, ua_browser, userAgent, proxy, site, post_url);
-	}
-
-	async function get_abck(site, bmak, userAgent, ua_browser, proxy) {
-		var post_url,
-			req = net.request({
-				method: "GET",
-				url: site.url,
-				session: akamaiSession2,
-				// useSessionCookies: true,
-				hostname: site.host,
-				headers: {
-					'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-					'user-agent': userAgent,
-					'sec-fetch-site': 'none',
-					'sec-fetch-mode': 'navigate',
-					'accept-encoding': 'gzip, deflate, br',
-					'accept-language': 'en-US,en;q=0.9'
-				},
-			});
-
-		req.on("response", (response) => {
-			response.on("error", e => reject(e));
-			
-			response.on('data', (chunk) => {
-				var body = chunk.toString('utf8');
-				scriptUrl = /\['_setAu', '(\/\w+\/\w+)'\]/i.exec(body);
-        console.log(scriptUrl)
-        if (!scriptUrl) scriptUrl = /<script type="text\/javascript"  src="([^"]+?)"><\/script><\/body>/g.exec(body);
-
-        if (!scriptUrl) return;
-        
-        if (scriptUrl[1].includes("http")) endpoint = scriptUrl[1]
-        else endpoint = url + scriptUrl[1]
-				post_url = endpoint;
-				console.log(endpoint)
-				// var post_url_match = /src="\/(static|assets|api|resources|public)\/(\w+)/gm.exec(body);
-				// console.log(post_url_match);
-				// if(post_url_match == null) return;
-				// post_url = `${post_url_match[1]}/${post_url_match[2]}`;
-			});
-
-			response.on('end', () => {
-				akamaiSession2.cookies.get({}).then((cookies) => {
-					var abck = cookies.find(x => x.name === "_abck").value;
-					var xsrf = cookies.find(x => x.name === "frsx").value;
-					console.log('abck ' + abck)
-					console.log('xsrf ' + xsrf)
-					getSubmitEndpoint(bmak, abck, ua_browser, userAgent, proxy, site, post_url, xsrf);
-					// sensorGen(bmak, abck, ua_browser, userAgent, proxy, site, post_url);
-				}).catch((e) => logger.red('exception ' + e.stack));
-			});
-		});
-		req.end();
-
-		// var params = {
-		// 	method: 'GET',
-		// 	url: site.url,
-		// 	headers: {
-				// ...site.headers,
-				// 'user-agent': userAgent,
-		// 	},
-		// 	proxy: proxy !== undefined ? `http://${proxy}` : null,
-		// 	timeout: 2000,
-		// 	html: true,
-		// 	jar: cookieJar,
-		// 	resolveWithFullResponse: true,
-		// }
-
-		// cloudscraper(params).then(response => {
-		// 	var post_url_match = /src="\/(static|assets|api|resources|public)\/(\w+)/gm.exec(response.body),
-		// 		post_url = `${post_url_match[1]}/${post_url_match[2]}`,
-		// 		abck = response.headers['set-cookie'].toString().split('_abck=')[1].split("; Domain")[0];
-			// sensorGen(bmak, abck, ua_browser, userAgent, proxy, site, post_url, formInfo, cookieJar);
-		// }).catch(e => {
-		// 	logger.red(e.message == "Error: ESOCKETTIMEDOUT" ? `[GET] Proxy Banned` : `[GET] ${e.message}`);
-		// })
-	}
-
-	async function getSubmitEndpoint(bmak, abck, ua_browser, userAgent, proxy, site, post_url, xsrf){
-		var req = net.request({
-			method: "GET",
-			url: `https://zalando.pl/VJOBKeYwQ/lW35/Ygrrg/fOp3tQ5bpu/WWdFNA/NB/VcZxQfEDg`,
-			session: akamaiSession2,
-			useSessionCookies: true,
-			hostname: site.host,
-			headers: {
-				'accept-encoding': 'gzip, deflate, br',
-				'accept-language': 'en-US,en;q=0.9',
-				'dnt': '1',
-				'referer': site.url,
-				'sec-fetch-dest': 'script',
-				'x-xsrf-token': xsrf,
-				'sec-fetch-mode':' cors',
-				'sec-fetch-site': 'same-origin',
-				'user-agent': userAgent
-			},
-			ciphers:shuffledCiphers,
-		});
-
-	req.on("response", (response) => {
-		var body = '';
-		response.on("error", e => reject(e));
-		
-		response.on('data', (chunk) => {
-			body += chunk;
-		});
-
-		response.on('end', () => {
-			akamaiSession2.cookies.get({}).then((cookies) => {
-				var xsrf1 = cookies.find(x => x.name === "frsx").value;
-				sensorGen(bmak, abck, ua_browser, userAgent, proxy, site, post_url, xsrf1);
-				// sensorGen(bmak, abck, ua_browser, userAgent, proxy, site, post_url);
-			}).catch((e) => logger.red('exception ' + e.stack));
-		});
-	});
-	req.end();
-	}
-
-	async function sensorGen(bmak, abck, ua_browser, userAgent, proxy, site, post_url, xsrf) {
-		var g = "", w = "", y = "";
-		if(abck.includes("\|\|") && bmak.type != 'minimal') {
-			bmak = await mn_poll(abck, bmak);
-			bmak = await genChallengeMouseEvent(bmak);
-			var h = await mn_get_current_challenges(abck);
-			if (undefined !== h[1]) {
-				logger.green('Filtering challenge 1')
-				var C = h[1];
-				undefined !== bmak.mn_r[C] && (g = bmak.mn_r[C])
-			}
-			if (undefined !== h[2]) {
-				var E = h[2];
-				logger.green('Filtering challenge 2')
-				if(undefined !== bmak.mn_r[E]) w = bmak.mn_r[E]
-			}
-			if (undefined !== h[3]) {
-				logger.green('Filtering challenge 3')
-				var S = h[3];
-				undefined !== bmak.mn_r[S] && (y = bmak.mn_r[S])
-			}
-		}
-		var dsd = ff(80) + ff(105) + ff(90) + ff(116) + ff(69); // l
-		var a = get_cf_date() % 1e7;
-		bmak.d3 = a;
-		var ss = bmak.ke_vel + bmak.me_vel + bmak.doe_vel + bmak.dme_vel + bmak.te_vel + bmak.pe_vel;
-		var uu = jrs(bmak.start_ts);
-		var sensor_data =
-			bmak.ver +  // GIT
-			"-1,2,-94,-100," + // GIT
-			gd(ua_browser, userAgent, bmak) + // GIT
-			"-1,2,-94,-101," + // GIT
-			"do_en,dm_en,t_en" + // i in bmak
-			"-1,2,-94,-105," + // GIT
-			bmak.formInfo + // GIT
-			"-1,2,-94,-102," + // GIT
-			bmak.formInfo + // GIT
-			"-1,2,-94,-108," + // GIT
-			//bmak.kact // if no active elemeent
-			"-1,2,-94,-110," + // git
-			// bmak.genmouse + //OR EMPTY MOUSE => "0,1," + mm + ',' + kk + ',' + ll + ';' + // TODO: to check
-			"-1,2,-94,-117," + // GIT
-			//bmak.tact // GIT TODO: to check
-			"-1,2,-94,-111," + // GIT
-			cdoa(bmak) + // GIT touch events
-			"-1,2,-94,-109," +
-			cdma(bmak) + // GIT device orientation events
-			"-1,2,-94,-114," +
-			//bmak.pact //  chyba git pointer up down
-			"-1,2,-94,-103," + // GIT
-			bmak.vcact + // GIT 
-			"-1,2,-94,-112," + // GIT
-			site.url + // GIT
-			"-1,2,-94,-115," + // GIT
-			[1, bmak.me_vel + 32, bmak.te_vel + 32, 0, 0, 0, ss, bmak.updatet, 0, bmak.start_ts, bmak.td, parseInt((parseInt(bmak.start_ts / (2016 * 2016))) / 23), 0,bmak.me_cnt, parseInt(parseInt((parseInt(bmak.start_ts / (2016 * 2016))) / 23) / 6), bmak.pe_cnt, 0, bmak.s, bmak.ta, 0, abck.toString(), ab(abck.toString()),bmak.y, bmak.z, 30261693, dsd, uu[0], uu[1]].join(',') +
-			// OLD [1, bmak.me_vel + 32, 32, 0, 0, 0, bmak.me_vel, bmak.updatet, 0, bmak.start_ts, bmak.td, parseInt((parseInt(bmak.start_ts / (2016 * 2016))) / 23), 0, bmak.me_cnt, parseInt(parseInt((parseInt(bmak.start_ts / (2016 * 2016))) / 23) / 6), bmak.pe_cnt, 0, bmak.s, bmak.ta, 0, abck.toString(), ab(abck.toString()), bmak.y, bmak.z, 30261693].join(',') + //needs to be improved
-			"-1,2,-94,-106," + // git
-			bmak.aj_type + "," + bmak.aj_indx + // git
-			"-1,2,-94,-119," + // git
-			bmak.getmr + // git
-			"-1,2,-94,-122," + // git
-			sed() + // git
-			"-1,2,-94,-123," +  // git
-			g + // git
-			//h function (undefined) 
-			"-1,2,-94,-124," + // git
-			w + // git
-			//g function (undefined)
-			"-1,2,-94,-126," + // git 
-			y +  // git
-			"-1,2,-94,-127," + // git
-			bmak.nav_perm;
-		var k = 24 ^ ab(sensor_data);
-
-		sensor_data =
-			sensor_data +
-			"-1,2,-94,-70," + // git
-			bmak.fpValstr + // git
-			"-1,2,-94,-80," + // git
-			bmak.p + // TODO: CHECK THIS
-			"-1,2,-94,-116," + // git
-			to(bmak) + // TO CHECK WINDOW[0
-			"-1,2,-94,-118," + // git
-			k + // git
-			"-1,2,-94,-129," + // git
-			[bmak.fmh, bmak.fmz, bmak.ssh, bmak.wv, bmak.wr, bmak.weh].join(',') + // git
-			",-1,2,-94,-121,";
-		var sensor = await gen_key(sensor_data, bmak);
-		logger.yellow(sensor)
-		// init(site, userAgent, ua_browser, proxy, abck, post_url, formInfo);
-		// sendPost(sensor, formInfo, userAgent, ua_browser, proxy, site, post_url, abck)
-		validator(sensor, bmak, formInfo, userAgent, ua_browser, proxy, site, post_url, abck, xsrf)
-	}
-
-	async function validator(sensor, bmak, formInfo, userAgent, ua_browser, proxy, site, post_url, abck, xsrf) {
-		var ak_bmsc;
-		var bm_sz;
-		// await akamaiSession.cookies.get({})
-        //   .then((cookies) => {
-		// 	  console.log(cookies)
-		// 	ak_bmsc = cookies.find(x => x.name === "ak_bmsc").value;
-		// 	bm_sz = cookies.find(x => x.name === "bm_sz").value;
-		//   })
-		//   console.log(`DCT_Exp_HUNDRED=DCT; bm_sz=${bm_sz}; ak_bmsc=${ak_bmsc}; _abck=${abck}; check=true`)
-		console.log(`https://${site.host}/${post_url}`)
-		var options = {
-			'method': 'POST',
-			'url': `https://www.zalando.pl/VJOBKeYwQ/lW35/Ygrrg/fOp3tQ5bpu/WWdFNA/NB/VcZxQfEDg`, 
-			'session': akamaiSession2,
-			'useSessionCookies': true,
-			'hostname': site.host,
-			headers: {
-				'sec-fetch-dest': 'empty',
-				'authority': site.host,
-				'user-agent': userAgent,
-				'content-type': 'text/plain;charset=UTF-8',
-				'accept': '*/*',
-				'origin': `https://${site.host}`,
-				'sec-fetch-site': 'same-origin',
-				'sec-fetch-mode': 'cors',
-				'referer': `https://${site.host}/`,
-				'accept-encoding': 'gzip, deflate, br',
-				'accept-language': 'en-US,en;q=0.9,fr;q=0.8,de;q=0.7',
-				'dnt': '1',
-				// 'Cookie': `DCT_Exp_HUNDRED=DCT; bm_sz=${bm_sz}; ak_bmsc=${ak_bmsc}; _abck=${abck}; check=true`
-			},
-			ciphers: shuffledCiphers,
-		};
-		
-		var req = net.request(options, function (res) {
-			var chunks = [];
-		
-			res.on("data", function (chunk) {
-				console.log(chunk.toString())
-				chunks.push(chunk);
-			});
-		
-			res.on("end", function (chunk) {
-				akamaiSession2.cookies.get({}).then(async (cookies) => {
-
-					var abck = cookies.find(x => x.name === "_abck").value;
-					var verify = verify_abck(abck, site, true);
-					verify.success ? logger.green(JSON.stringify(verify)) && writeToFile(abck) : logger.red(JSON.stringify(verify));
-					if(cookie_counter < 4){
-						init(site, userAgent, ua_browser, proxy, abck, post_url, formInfo);
-					}
-				}).catch((e) => logger.red(e.message));
-			});
-		
-			res.on("error", function (error) {
-			console.error(error);
-			});
-		});
-		
-		var postData = `{\"sensor_data\":\"${sensor.toString()}\"}`;
-		// req.setHeader("Cookie", 'DCT_Exp_HUNDRED=DCT')
-		// req.setHeader("Cookie", `bm_sz=${bm_sz}`)
-		// req.setHeader("Cookie", `ak_bmsc=${ak_bmsc}`)
-		// req.setHeader("Cookie", `_abck=${abck};`)
-		
-		req.write(postData);
-
-		req.end();
-
-		// var params = {
-		// 	method: 'POST',
-		// 	url: `https://${site.host}/${post_url}`,
-		// 	headers: {
-				// 'Accept': '*/*',
-				// 'Accept-Encoding': 'gzip, deflate, br',
-				// 'Accept-Language': 'en-US,en;q=0.9',
-				// 'Content-Type': 'application/json',
-				// 'dnt': '1',
-				// 'Host': site.host,
-				// 'User-Agent': userAgent,
-				// 'Connection': 'keep-alive',
-				// 'Cache-Control': 'no-cache',
-		// 	},
-			// body: JSON.stringify({
-			// 	"sensor_data": sensor
-			// }),
-		// 	proxy: proxy !== undefined ? `http://${proxy}` : null,
-		// 	timeout: 2000,
-		// 	jar: cookieJar,
-		// 	resolveWithFullResponse: true,
-		// }
-		// return cloudscraper(params).then(response => {
-		// 	abck = response.headers['set-cookie'].toString().split("_abck=")[1].split("; Domain")[0];
-		// 	logger.blue(JSON.stringify(verify_abck(abck, site)));
-			// init(site, userAgent, ua_browser, proxy, abck, post_url, cookieJar);
-		// }).catch(e => {
-		// 	logger.red(e.message == "Error: ESOCKETTIMEDOUT" ? `[POST] Proxy Banned` : `[POST] ${e.message}`)
-		// });
-	}
-
-	async function sendPost(sensor, formInfo, userAgent, ua_browser, proxy, site, url, abck){
-		await win.webContents.executeJavaScript(`
+// COOKIE JAR
+const { Cookie, CookieJar } = tough_cookie_1.default;
+let cookie_counter = 0, akamaiSession, akamaiSession2;
+const dataNum = 0;
+// dataNum = '-1818464567'
+electron_1.app.allowRendererProcessReuse = false;
+electron_1.app.commandLine.appendSwitch('disable-site-isolation-trials');
+const jar = new CookieJar();
+const client = axios_1.default.create({
+    httpsAgent: new http_cookie_agent_1.HttpsCookieAgent({ jar, ciphers: shuffledCiphers }),
+});
+electron_1.app.on('ready', () => __awaiter(void 0, void 0, void 0, function* () {
+    akamaiSession = electron_1.session.fromPartition('akamai', { cache: false });
+    akamaiSession2 = electron_1.session.fromPartition('akamai2', { cache: false });
+    let fingerprintGenerator = new FingerprintGenerator({
+        browsers: [
+            { name: "firefox", minVersion: 80 },
+            { name: "chrome", minVersion: 87 },
+            "safari"
+        ],
+        devices: [
+            "mobile"
+        ],
+        operatingSystems: [
+            "ios"
+        ]
+    });
+    let { fingerprint, headers } = fingerprintGenerator.getFingerprint();
+    let site = 'zalandouk';
+    site = websites_json_1.default.find(w => w.name === site);
+    var userAgent = fingerprint.userAgent.replace(/\\|"/g, "");
+    console.log(fingerprint);
+    var ua_browser = userAgent.toString().replace(/\\|"/g, "").indexOf("Chrome") > -1 ? "chrome" : userAgent.toString().replace(/\\|"/g, "").indexOf("Safari") > -1 ? "safari" : userAgent.toString().replace(/\\|"/g, "").indexOf("Firefox") > -1 ? "firefox" : "ie";
+    akamaiSession.setUserAgent(userAgent);
+    akamaiSession2.setUserAgent(userAgent);
+    let win = new electron_1.BrowserWindow({
+        show: false,
+        webPreferences: {
+            session: akamaiSession,
+            devTools: true
+        }
+    });
+    yield win.show();
+    yield win.webContents.openDevTools();
+    // win.loadURL(
+    // 	url.format({
+    // 	  pathname: path.join(__dirname, "index.html"),
+    // 	  protocol: "file:",
+    // 	  slashes: true
+    // 	})
+    //   );
+    yield intercept();
+    setTimeout(function () {
+        return __awaiter(this, void 0, void 0, function* () {
+            yield win.loadURL(site.url, { userAgent: userAgent });
+        });
+    }, 1000);
+    // var userAgent = new UserAgent([/Chrome/, {deviceCategory: 'desktop', platform: 'MacIntel'}]).toString().replace(/\|"/g, "");
+    let formInfo;
+    win.webContents.on('did-finish-load', function () {
+        return __awaiter(this, void 0, void 0, function* () {
+            console.log('Finished loading');
+            formInfo = yield getforminfo();
+            // controller(site, userAgent, ua_browser, null, null, null, formInfo)
+            init(site, userAgent, ua_browser, null, null, null, formInfo, null);
+        });
+    });
+    function controller(site, userAgent, ua_browser, proxy, abck, post_url, formInfo, xsrf) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var bmak = yield init(site, userAgent, ua_browser, proxy, abck, post_url, formInfo, xsrf);
+            var initialCookie = yield get_abck(site, bmak, userAgent, ua_browser, proxy);
+        });
+    }
+    function init(site, userAgent, ua_browser, proxy, abck, post_url, formInfo, xsrf) {
+        return __awaiter(this, void 0, void 0, function* () {
+            console.log('isABCK');
+            console.log(abck);
+            // akamaiSession.cookies.get({})
+            //   .then((cookies) => {
+            // 	  console.log(cookies)
+            //   })
+            var bmak = {
+                aj_indx: 0,
+                aj_type: 0,
+                den: 0,
+                dmact: 0,
+                dme_vel: 0,
+                doact: 0,
+                doe_cnt: 0,
+                doe_vel: 0,
+                formInfo: formInfo,
+                fpValstr: "",
+                fmh: "",
+                fmz: 1,
+                ssh: "",
+                genmouse: "",
+                getmr: "",
+                lang: "-",
+                loc: "",
+                brv: 0,
+                me_cnt: 0,
+                me_vel: 0,
+                mn_abck: "",
+                mn_al: [],
+                mn_cc: "",
+                mn_cd: 1000,
+                mn_ct: 1,
+                mn_il: [],
+                mn_lc: [],
+                mn_lcl: 0,
+                mn_ld: [],
+                mn_lg: [],
+                mn_mc_indx: 0,
+                mn_mc_lmt: 10,
+                mn_psn: "",
+                mn_r: [],
+                mn_sen: 0,
+                mn_state: 0,
+                mn_stout: 1e3,
+                mn_tcl: [],
+                mn_tout: 100,
+                mn_ts: "",
+                nav_perm: "",
+                n_ck: 0,
+                p: 0,
+                pen: -1,
+                pe_cnt: 0,
+                plen: -1,
+                js_post: !0,
+                prod: "-",
+                psub: "-",
+                s: 0,
+                sensor_data: 0,
+                start_ts: get_cf_date(true),
+                ta: 0,
+                td: 0,
+                te_vel: 0,
+                hbCalc: !0,
+                tst: -1,
+                type: '',
+                ua_browser: ua_browser,
+                updatet: 0,
+                vcact: "",
+                ver: site.ver,
+                wen: 0,
+                weh: "",
+                wl: 0,
+                wv: "",
+                wr: "",
+                xagg: -1,
+                y: Math.floor(1e3 * Math.random()).toString(),
+                z1: 0,
+                z: -1
+            };
+            // return bmak;
+            abck == null ? yield switcher('nomouse', bmak) : yield switcher('nomouse', bmak);
+            // await switcher('nomouse', bmak);
+            abck == null ? get_abck(site, bmak, userAgent, ua_browser, proxy) : sensorGen(bmak, abck, ua_browser, userAgent, proxy, site, post_url, xsrf);
+        });
+    }
+    const getScriptUrl = (data) => {
+        var body = data.toString('utf8');
+        let scriptUrl = /\['_setAu', '(\/\w+\/\w+)'\]/i.exec(body);
+        if (!scriptUrl)
+            scriptUrl = /<script type="text\/javascript"  src="([^"]+?)"><\/script><\/body>/g.exec(body);
+        if (!scriptUrl)
+            return;
+        let endpoint;
+        if (scriptUrl[1].includes("https"))
+            endpoint = scriptUrl[1];
+        else
+            endpoint = site.url.slice(0, -1) + scriptUrl[1];
+        return endpoint;
+    };
+    function get_abck(site, bmak, userAgent, ua_browser, proxy) {
+        var _a, _b;
+        return __awaiter(this, void 0, void 0, function* () {
+            let post_url;
+            try {
+                let req = yield client.get(site.url, {
+                    headers: Object.assign(Object.assign({}, headers), { 'user-agent': userAgent })
+                });
+                const cookiesF = req.headers['set-cookie'];
+                if (cookiesF !== undefined) {
+                    for (const cookie of cookiesF) {
+                        yield jar.setCookie(cookie, site.url, { ignoreError: true });
+                    }
+                }
+                post_url = getScriptUrl(req.data);
+                const cookies = jar.toJSON().cookies;
+                var abck = (_a = cookies.find(x => x.key === "_abck")) === null || _a === void 0 ? void 0 : _a.value;
+                var xsrf = (_b = cookies.find(x => x.key === "frsx")) === null || _b === void 0 ? void 0 : _b.value;
+                getSubmitEndpoint(bmak, abck, ua_browser, userAgent, proxy, site, post_url, xsrf);
+            }
+            catch (error) {
+                console.log(error);
+            }
+        });
+    }
+    function getSubmitEndpoint(bmak, abck, ua_browser, userAgent, proxy, site, post_url, xsrf) {
+        var _a;
+        return __awaiter(this, void 0, void 0, function* () {
+            try {
+                let req = yield client.get(post_url, {
+                    headers: Object.assign(Object.assign({}, headers), { 'x-xsrf-token': xsrf, 'referer': site.url, 'user-agent': userAgent })
+                });
+                const cookies = jar.toJSON().cookies;
+                var xsrf1 = (_a = cookies.find(x => x.key === "frsx")) === null || _a === void 0 ? void 0 : _a.value;
+                console.log("🚀 ~ file: index.ts ~ line 373 ~ getSubmitEndpoint ~ xsrf1", xsrf1);
+                sensorGen(bmak, abck, ua_browser, userAgent, proxy, site, post_url, xsrf1);
+            }
+            catch (error) {
+                logger_1.default.red('exception ' + error.stack);
+            }
+        });
+    }
+    function sensorGen(bmak, abck, ua_browser, userAgent, proxy, site, post_url, xsrf) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var g = "", w = "", y = "";
+            if (abck.includes("\|\|") && bmak.type != 'minimal') {
+                bmak = yield mn_poll(abck, bmak);
+                bmak = yield genChallengeMouseEvent(bmak);
+                var h = yield mn_get_current_challenges(abck);
+                if (undefined !== h[1]) {
+                    logger_1.default.green('Filtering challenge 1');
+                    var C = h[1];
+                    undefined !== bmak.mn_r[C] && (g = bmak.mn_r[C]);
+                }
+                if (undefined !== h[2]) {
+                    var E = h[2];
+                    logger_1.default.green('Filtering challenge 2');
+                    if (undefined !== bmak.mn_r[E])
+                        w = bmak.mn_r[E];
+                }
+                if (undefined !== h[3]) {
+                    logger_1.default.green('Filtering challenge 3');
+                    var S = h[3];
+                    undefined !== bmak.mn_r[S] && (y = bmak.mn_r[S]);
+                }
+            }
+            var dsd = ff(80) + ff(105) + ff(90) + ff(116) + ff(69); // l
+            var a = get_cf_date() % 1e7;
+            bmak.d3 = a;
+            var ss = bmak.ke_vel + bmak.me_vel + bmak.doe_vel + bmak.dme_vel + bmak.te_vel + bmak.pe_vel;
+            var uu = jrs(bmak.start_ts);
+            var sensor_data = bmak.ver + // GIT
+                "-1,2,-94,-100," + // GIT
+                gd(ua_browser, userAgent, bmak) + // GIT
+                "-1,2,-94,-101," + // GIT
+                "do_en,dm_en,t_en" + // i in bmak
+                "-1,2,-94,-105," + // GIT
+                bmak.formInfo + // GIT
+                "-1,2,-94,-102," + // GIT
+                bmak.formInfo + // GIT
+                "-1,2,-94,-108," + // GIT
+                //bmak.kact // if no active elemeent
+                "-1,2,-94,-110," + // git
+                // bmak.genmouse + //OR EMPTY MOUSE => "0,1," + mm + ',' + kk + ',' + ll + ';' + // TODO: to check
+                "-1,2,-94,-117," + // GIT
+                //bmak.tact // GIT TODO: to check
+                "-1,2,-94,-111," + // GIT
+                cdoa(bmak) + // GIT touch events
+                "-1,2,-94,-109," +
+                cdma(bmak) + // GIT device orientation events
+                "-1,2,-94,-114," +
+                //bmak.pact //  chyba git pointer up down
+                "-1,2,-94,-103," + // GIT
+                bmak.vcact + // GIT 
+                "-1,2,-94,-112," + // GIT
+                site.url + // GIT
+                "-1,2,-94,-115," + // GIT
+                [1, bmak.me_vel + 32, bmak.te_vel + 32, 0, 0, 0, ss, bmak.updatet, 0, bmak.start_ts, bmak.td, parseInt((parseInt(bmak.start_ts / (2016 * 2016))) / 23), 0, bmak.me_cnt, parseInt(parseInt((parseInt(bmak.start_ts / (2016 * 2016))) / 23) / 6), bmak.pe_cnt, 0, bmak.s, bmak.ta, 0, abck.toString(), ab(abck.toString()), bmak.y, bmak.z, 30261693, dsd, uu[0], uu[1]].join(',') +
+                // OLD [1, bmak.me_vel + 32, 32, 0, 0, 0, bmak.me_vel, bmak.updatet, 0, bmak.start_ts, bmak.td, parseInt((parseInt(bmak.start_ts / (2016 * 2016))) / 23), 0, bmak.me_cnt, parseInt(parseInt((parseInt(bmak.start_ts / (2016 * 2016))) / 23) / 6), bmak.pe_cnt, 0, bmak.s, bmak.ta, 0, abck.toString(), ab(abck.toString()), bmak.y, bmak.z, 30261693].join(',') + //needs to be improved
+                "-1,2,-94,-106," + // git
+                bmak.aj_type + "," + bmak.aj_indx + // git
+                "-1,2,-94,-119," + // git
+                bmak.getmr + // git
+                "-1,2,-94,-122," + // git
+                sed() + // git
+                "-1,2,-94,-123," + // git
+                g + // git
+                //h function (undefined) 
+                "-1,2,-94,-124," + // git
+                w + // git
+                //g function (undefined)
+                "-1,2,-94,-126," + // git 
+                y + // git
+                "-1,2,-94,-127," + // git
+                bmak.nav_perm;
+            var k = 24 ^ ab(sensor_data);
+            sensor_data =
+                sensor_data +
+                    "-1,2,-94,-70," + // git
+                    bmak.fpValstr + // git
+                    "-1,2,-94,-80," + // git
+                    bmak.p + // TODO: CHECK THIS
+                    "-1,2,-94,-116," + // git
+                    to(bmak) + // TO CHECK WINDOW[0
+                    "-1,2,-94,-118," + // git
+                    k + // git
+                    "-1,2,-94,-129," + // git
+                    [bmak.fmh, bmak.fmz, bmak.ssh, bmak.wv, bmak.wr, bmak.weh].join(',') + // git
+                    ",-1,2,-94,-121,";
+            var sensor = yield gen_key(sensor_data, bmak);
+            logger_1.default.yellow(sensor);
+            // init(site, userAgent, ua_browser, proxy, abck, post_url, formInfo);
+            // sendPost(sensor, formInfo, userAgent, ua_browser, proxy, site, post_url, abck)
+            validator(sensor, bmak, formInfo, userAgent, ua_browser, proxy, site, post_url, abck, xsrf);
+        });
+    }
+    function validator(sensor, bmak, formInfo, userAgent, ua_browser, proxy, site, post_url, abck, xsrf) {
+        var abck;
+        var _a;
+        return __awaiter(this, void 0, void 0, function* () {
+            var ak_bmsc;
+            var bm_sz;
+            try {
+                const req = yield client.post(post_url, `{\"sensor_data\":\"${sensor.toString()}\"}`, {
+                    headers: {
+                        'sec-fetch-dest': 'empty',
+                        'authority': 'accounts.zalando.pl',
+                        'user-agent': userAgent,
+                        'content-type': 'text/plain;charset=UTF-8',
+                        'accept': '*/*',
+                        'origin': `https://${site.host}`,
+                        'sec-fetch-site': 'same-origin',
+                        'x-xsrf-token': xsrf,
+                        'sec-fetch-mode': 'cors',
+                        'referer': `https://account.${site.host}/`,
+                        Cookie: jar.toJSON().cookies.map(x => `${x.key}=${x.value}`).join("; "),
+                        'accept-encoding': 'gzip, deflate, br',
+                        'accept-language': 'en-US,en;q=0.9,fr;q=0.8,de;q=0.7',
+                        'dnt': '1',
+                    }
+                });
+                console.log(req.data);
+                // if(cookie_counter >= 3){
+                // 	const firstReqLogin = await client.post("https://www.zalando.pl/sso/login", "original_uri=https%3A%2F%2Fwww.zalando.pl%2Fmyaccount%2F&original_request_id=xIQY4rnNqyf2QPOZ&view=login", {
+                // 		headers: {
+                // 			accept: "*/*",
+                // 			"accept-language": "en-US,en;q=0.9,pl;q=0.8",
+                // 			"content-type": "application/x-www-form-urlencoded",
+                // 			dpr: "1",
+                // 			"sec-ch-ua": '" Not;A Brand";v="99", "Google Chrome";v="97", "Chromium";v="97"',
+                // 			"user-agent":
+                // 				"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.99 Safari/537.36",
+                // 			"sec-ch-ua-mobile": "?0",
+                // 			"sec-ch-ua-platform": '"Windows"',
+                // 			"sec-fetch-dest": "empty",
+                // 			"sec-fetch-mode": "cors",
+                // 			"sec-fetch-site": "same-origin",
+                // 			"sec-gpc": "1",
+                // 			"viewport-width": "390",
+                // 			"x-xsrf-token": xsrf,
+                // 			cookie: jar.toJSON().cookies.map(x => `${x.key}=${x.value}`).join("; "),
+                // 			Referer: "https://www.zalando.pl/",
+                // 			"Referrer-Policy": "strict-origin-when-cross-origin",
+                // 		},
+                // 	});
+                // console.log(firstReqLogin.data);
+                // 	const logo = await client.post(
+                // 		"https://accounts.zalando.com/api/login",
+                // 		`{"email":"lucjan.grzesik@gmail.com","secret":"aLLegro123","request":${parsed.request}}`,
+                // 		{
+                // 			headers: {
+                // 				'sec-fetch-dest': 'empty',
+                // 				'authority': 'accounts.zalando.com',
+                // 				'user-agent': userAgent,
+                // 				"content-type": "application/json",
+                // 				'accept': '*/*',
+                // 				"sec-ch-ua-mobile": "?0",
+                // 				"sec-ch-ua-platform": '"iOS"',
+                // 				'origin': `https://accounts.zalando.com`,
+                // 				'sec-fetch-site': 'same-origin',
+                // 				'sec-fetch-mode': 'cors',
+                // 				'referer': urlLogin,
+                // 				Cookie: jar.toJSON().cookies.map(x => `${x.key}=${x.value}`).join("; "),
+                // 				'accept-encoding': 'gzip, deflate, br',
+                // 				'accept-language': 'en-US,en;q=0.9,fr;q=0.8,de;q=0.7',
+                // 				'dnt': '3',
+                // 				"viewport-width": "390",
+                // 				'x-csrf-token': csrf,
+                // 				"x-flow-id": "TL1GQGcDPfjGsqNI",
+                // 			},
+                // 			withCredentials: true,
+                // 		},
+                // 	);
+                // 	console.log(logo)
+                //  }
+                const cookies = jar.toJSON().cookies;
+                abck = (_a = cookies.find(x => x.key === "_abck")) === null || _a === void 0 ? void 0 : _a.value;
+                var verify = verify_abck(abck, site, true);
+                verify.success ? logger_1.default.green(JSON.stringify(verify)) && writeToFile(abck) : logger_1.default.red(JSON.stringify(verify));
+                if (cookie_counter < 4) {
+                    init(site, userAgent, ua_browser, proxy, abck, post_url, formInfo, xsrf);
+                }
+            }
+            catch (error) {
+                console.log(error);
+            }
+            // await akamaiSession.cookies.get({})
+            //   .then((cookies) => {
+            // 	  console.log(cookies)
+            // 	ak_bmsc = cookies.find(x => x.name === "ak_bmsc").value;
+            // 	bm_sz = cookies.find(x => x.name === "bm_sz").value;
+            //   })
+            //   console.log(`DCT_Exp_HUNDRED=DCT; bm_sz=${bm_sz}; ak_bmsc=${ak_bmsc}; _abck=${abck}; check=true`)
+            var options = {
+                'method': 'POST',
+                'url': post_url,
+                'session': akamaiSession2,
+                'useSessionCookies': true,
+                'hostname': site.host,
+                headers: {
+                    'sec-fetch-dest': 'empty',
+                    'authority': site.host,
+                    'user-agent': userAgent,
+                    'content-type': 'text/plain;charset=UTF-8',
+                    'accept': '*/*',
+                    'origin': `https://${site.host}`,
+                    'sec-fetch-site': 'same-origin',
+                    'sec-fetch-mode': 'cors',
+                    'referer': `https://${site.host}/`,
+                    'accept-encoding': 'gzip, deflate, br',
+                    'accept-language': 'en-US,en;q=0.9,fr;q=0.8,de;q=0.7',
+                    'dnt': '1',
+                    // 'Cookie': `DCT_Exp_HUNDRED=DCT; bm_sz=${bm_sz}; ak_bmsc=${ak_bmsc}; _abck=${abck}; check=true`
+                },
+                ciphers: shuffledCiphers,
+            };
+        });
+    }
+    function sendPost(sensor, formInfo, userAgent, ua_browser, proxy, site, url, abck) {
+        return __awaiter(this, void 0, void 0, function* () {
+            yield win.webContents.executeJavaScript(`
 		function check_cookie_name(name) 
 		{
 			var match = document.cookie.match(new RegExp('(^| )' + name + '=([^;]+)'));
@@ -716,477 +511,428 @@ app.on('ready', async () => {
 		}
 		send()
 		`).then(response => {
-			abck = response;
-			console.log(abck)
-			var verify = verify_abck(abck, site, true);
-			verify.success ? logger.green(JSON.stringify(verify)) && writeToFile(abck) : logger.red(JSON.stringify(verify));
-			if(cookie_counter < 4){
-				init(site, userAgent, ua_browser, proxy, abck, url, formInfo);
-			}
-		})
-	}
-
-	function gen_key(sensor_data, bmak) {
-		var a = get_cf_date();
-		var y = od("0a46G5m17Vrp4o4c", "afSbep8yjnZUjq3aL010jO15Sawj2VZfdYK8uY90uxq").slice(0, 16);
-		var w = Math.floor(get_cf_date() / 36e5);
-		var j = get_cf_date();
-		var E = y + od(w, y) + sensor_data;
-		sensor_data = E + ";" + lodash.random(2, 22) + ";" + bmak.tst + ";" + (get_cf_date() - j)
-		return sensor_data;
-	}
-
-	function rir(a, t, e, n) {
-		return a > t && a <= e && (a += n % (e - t)) > e && (a = a - e + t), a;
-	}
-
-	function get_cf_date(start) {
-		if (Date.now) {
-			return (start ? new Date(Date.now()).getTime() : Date.now());
-		} else {
-			return (start ? new Date(+new Date()).getTime() : +new Date());
-		}
-	}
-
-	function getCookieVal(name, details){
-		if(!details.requestHeaders['Cookie'].includes(name)) return details;
-		details.requestHeaders['Cookie'] = details.requestHeaders['Cookie'].replace(name + '=' + details.requestHeaders['Cookie'].split(`${name}=`)[1].split(';')[0] + ';', '');
-		return details
-	}
-
-	async function intercept(){
-		const filter = {
-			urls: ['https://www.footlocker.com/assets/*']
-		  }
-		  var count = 0;
-		  win.webContents.session.webRequest.onBeforeSendHeaders(filter, async(details, callback) => {
-			  if(details.method == 'POST'){
-				details.uploadData.forEach(async part => {
-					console.log(part.bytes.toString('utf8'))
-				})
-				// details = await getCookieVal('check', details);
-				// details = await getCookieVal('mbox', details);
-				// details = await getCookieVal('AMCV_40A3741F578E26BA7F000101%40AdobeOrg', details);
-				// details = await getCookieVal('AMCVS_40A3741F578E26BA7F000101%40AdobeOrg', details);
-				// var cleanStr = details.requestHeaders['Cookie'].split('_abck=')[1].split(';')[0];
-				// details.requestHeaders['Cookie'] = details.requestHeaders['Cookie'].replace(cleanStr, 'C43E5257DCBECA8C1CC90B7E58F8DB0B~-1~YAAQlKoRYGHr6L1xAQAAuSd56APej+pd8yvTOQZiA34H1E7S1949T54xNYRsHrzJPgrjz9TI6+RD+0cP2jD3j3tgvUR9w06jpMyNik1opsQlt/6uvGIwWo/SKsXZovhTZaZwf9BAQken1lIaO3s3P8EnD8gT5LzW2ms9ojoBZD3oN3E58PgWMD12IQX1px//S3yJIqEvYoAv1OLIyeNUbXzbY1B6CSGTjhfVQlQLCq0GBlh469XLsXoNyaSK5gJyzhPp3xNxa/Vdy3V9RPANY2r08wT5TAnoiYPlhHoEOt45QYQrOSNCCtJKoyhpoA==~-1~-1~-1')
-				// sensor;
-				// if(count == 0) sensor = `7a74G7m23Vrp0o5c9165131.54-1,2,-94,-100,Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36,uaend,12147,20030107,en-US,Gecko,3,0,0,0,390898,1040935,1440,832,1440,900,1440,821,1440,,cpen:0,i1:0,dm:0,cwen:0,non:1,opc:0,fc:0,sc:0,wrc:1,isc:0,vib:1,bat:1,x11:0,x12:1,8931,0.646547378323,794355520407.5,loc:-1,2,-94,-101,do_en,dm_en,t_en-1,2,-94,-105,-1,2,-94,-102,-1,2,-94,-108,-1,2,-94,-110,-1,2,-94,-117,-1,2,-94,-111,-1,2,-94,-109,-1,2,-94,-114,-1,2,-94,-103,-1,2,-94,-112,https://www.footlocker.com/-1,2,-94,-115,1,32,32,0,0,0,0,9,0,1588711040815,-999999,16995,0,0,2832,0,0,10,0,0,${abck},29544,-1,-1,30261693-1,2,-94,-106,0,0-1,2,-94,-119,-1-1,2,-94,-122,0,0,0,0,1,0,0-1,2,-94,-123,-1,2,-94,-124,-1,2,-94,-126,-1,2,-94,-127,-1,2,-94,-70,-1-1,2,-94,-80,94-1,2,-94,-116,46842240-1,2,-94,-118,74881-1,2,-94,-121,;18;-1;0`
-				// if(count == 1) sensor = `7a74G7m23Vrp0o5c9165131.54-1,2,-94,-100,Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36,uaend,12147,20030107,en-US,Gecko,3,0,0,0,390898,1040999,1440,832,1440,900,1440,821,1440,,cpen:0,i1:0,dm:0,cwen:0,non:1,opc:0,fc:0,sc:0,wrc:1,isc:0,vib:1,bat:1,x11:0,x12:1,8931,0.882576068441,794355520470,loc:-1,2,-94,-101,do_en,dm_en,t_en-1,2,-94,-105,-1,2,-94,-102,-1,2,-94,-108,-1,2,-94,-110,-1,2,-94,-117,-1,2,-94,-111,-1,2,-94,-109,-1,2,-94,-114,-1,2,-94,-103,-1,2,-94,-112,https://www.footlocker.com/-1,2,-94,-115,1,32,32,0,0,0,0,1569,0,1588711040940,106,16995,0,0,2832,0,0,1570,0,0,${abck},29544,516,16516272,30261693-1,2,-94,-106,9,1-1,2,-94,-119,29,50,33,34,113,18,11,8,7,5,5,1178,1332,335,-1,2,-94,-122,0,0,0,0,1,0,0-1,2,-94,-123,-1,2,-94,-124,-1,2,-94,-126,-1,2,-94,-127,01321144241322243122-1,2,-94,-70,-36060876;-1849314799;dis;,7,8;true;true;true;240;true;24;24;true;false;1-1,2,-94,-80,5497-1,2,-94,-116,5205005-1,2,-94,-118,78285-1,2,-94,-121,;16;18;0`
-				// 	var responseData = Buffer.from(sensor, 'utf8');
-				// 	count++
-				// 	callback({cancel: 'true', beforeSendResponse: {"sensor_data":"foo"}, requestHeaders: details.requestHeaders})
-				// })
-
-				// const request = net.request(details)
-				// request.on('response', res => {
-				// 	const chunks = []
-
-				// 	res.on('data', chunk => {
-				// 		chunks.push(Buffer.from(chunk))
-				// 	})
-
-				// 	res.on('end', async() => {
-				// 		const file = Buffer.concat(chunks)
-				// 		callback(file)
-				// 	})
-				// })
-
-				// if (details.uploadData) {
-				// 	details.uploadData.forEach(part => {
-				// 		if (part.bytes) {
-				// 			request.write(part.bytes)
-				// 		} else if (part.file) {
-				// 			request.write(fs.readFileSync(part.file))
-				// 		}
-					// })
-				// }
-				// request.end()
-				callback({ cancel: true, requestHeaders: details.requestHeaders })
-			  } else {
-				details.requestHeaders['User-Agent'] = 'MyAgent'
-				callback({ cancel: false, requestHeaders: details.requestHeaders })
-			  }
-		  })
-		// count = 0;
-		// win.webContents.session.protocol.interceptHttpProtocol('https', (req, callback) => {
-		// 	if (req.url == 'https://www.footlocker.com/assets/ea4ac69816262992aff5b862e75c' && req.method == 'POST') {
-		// 		console.log(req)
-		// 		req.uploadData.forEach(part => {
-		// 			console.log(part.bytes.toString('utf8'))
-		// 			var abck = 'foo',
-		// 			sensor;
-		// 			if(count == 0) sensor = `7a74G7m23Vrp0o5c9165131.54-1,2,-94,-100,Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36,uaend,12147,20030107,en-US,Gecko,3,0,0,0,390898,1040935,1440,832,1440,900,1440,821,1440,,cpen:0,i1:0,dm:0,cwen:0,non:1,opc:0,fc:0,sc:0,wrc:1,isc:0,vib:1,bat:1,x11:0,x12:1,8931,0.646547378323,794355520407.5,loc:-1,2,-94,-101,do_en,dm_en,t_en-1,2,-94,-105,-1,2,-94,-102,-1,2,-94,-108,-1,2,-94,-110,-1,2,-94,-117,-1,2,-94,-111,-1,2,-94,-109,-1,2,-94,-114,-1,2,-94,-103,-1,2,-94,-112,https://www.footlocker.com/-1,2,-94,-115,1,32,32,0,0,0,0,9,0,1588711040815,-999999,16995,0,0,2832,0,0,10,0,0,${abck},29544,-1,-1,30261693-1,2,-94,-106,0,0-1,2,-94,-119,-1-1,2,-94,-122,0,0,0,0,1,0,0-1,2,-94,-123,-1,2,-94,-124,-1,2,-94,-126,-1,2,-94,-127,-1,2,-94,-70,-1-1,2,-94,-80,94-1,2,-94,-116,46842240-1,2,-94,-118,74881-1,2,-94,-121,;18;-1;0`
-		// 			if(count == 1) sensor = `7a74G7m23Vrp0o5c9165131.54-1,2,-94,-100,Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36,uaend,12147,20030107,en-US,Gecko,3,0,0,0,390898,1040999,1440,832,1440,900,1440,821,1440,,cpen:0,i1:0,dm:0,cwen:0,non:1,opc:0,fc:0,sc:0,wrc:1,isc:0,vib:1,bat:1,x11:0,x12:1,8931,0.882576068441,794355520470,loc:-1,2,-94,-101,do_en,dm_en,t_en-1,2,-94,-105,-1,2,-94,-102,-1,2,-94,-108,-1,2,-94,-110,-1,2,-94,-117,-1,2,-94,-111,-1,2,-94,-109,-1,2,-94,-114,-1,2,-94,-103,-1,2,-94,-112,https://www.footlocker.com/-1,2,-94,-115,1,32,32,0,0,0,0,1569,0,1588711040940,106,16995,0,0,2832,0,0,1570,0,0,${abck},29544,516,16516272,30261693-1,2,-94,-106,9,1-1,2,-94,-119,29,50,33,34,113,18,11,8,7,5,5,1178,1332,335,-1,2,-94,-122,0,0,0,0,1,0,0-1,2,-94,-123,-1,2,-94,-124,-1,2,-94,-126,-1,2,-94,-127,01321144241322243122-1,2,-94,-70,-36060876;-1849314799;dis;,7,8;true;true;true;240;true;24;24;true;false;1-1,2,-94,-80,5497-1,2,-94,-116,5205005-1,2,-94,-118,78285-1,2,-94,-121,;16;18;0`
-		// 				var responseData = Buffer.from(sensor, 'utf8');
-		// 				count++
-		// 				// callback({uploadData: responseData, requestHeaders: details.requestHeaders})
-		// 				callback(responseData)
-		// 				return;
-		// 				const request = net.request(req)
-		// 		request.on('response', res => {
-		// 			const chunks = []
-
-		// 			res.on('data', chunk => {
-		// 				chunks.push(Buffer.from(chunk))
-		// 			})
-
-		// 			res.on('end', async() => {
-		// 				const file = Buffer.concat(chunks)
-		// 				callback(file)
-		// 			})
-		// 		})
-
-		// 		if (req.uploadData) {
-		// 			console.log('upload data')
-		// 			req.uploadData.forEach(part => {
-		// 				if (part.bytes) {
-		// 					request.write(responseData)
-		// 				} else if (part.file) {
-		// 					request.write(fs.readFileSync(part.file))
-		// 				}
-		// 			})
-		// 		}
-		// 		request.end()
-		// 		})
-		// 	} else {
-		// 		console.log(req)
-			// 	const request = net.request(req)
-			// 	request.on('response', res => {
-			// 		const chunks = []
-
-			// 		res.on('data', chunk => {
-			// 			chunks.push(Buffer.from(chunk))
-			// 		})
-
-			// 		res.on('end', async() => {
-			// 			const file = Buffer.concat(chunks)
-			// 			callback(file)
-			// 		})
-			// 	})
-
-			// 	if (req.uploadData) {
-			// 		req.uploadData.forEach(part => {
-			// 			if (part.bytes) {
-			// 				request.write(part.bytes)
-			// 			} else if (part.file) {
-			// 				request.write(fs.readFileSync(part.file))
-			// 			}
-			// 		})
-			// 	}
-			// 	request.end()
-			// }
-		// })
-	}
-
-	async function switcher(type, bmak){
-		const [eh, el] = webGlExtentionsHash();
-		console.log(eh, el)
-		var add_random = lodash.random(600, 1600);
-		var canvasArray = [-258688526,-380229768,-910147602,-642074913,1454575003,-1627350430,-2087321731,-552230799,681622556,1468298035,-968659517,792904753,1872114383,-768838012,-1422808916,-1690440540,918177569,-299824332,-1100926242,590387504,1204914753,-850342987,1434960077,-184491859,-252924566,-1590637647,-906906434,1994921761,-1014216413,490096504,1377200418,-320790731,-1003491391,-1593598986,-1959133361,-2024885122,473012774,-329194412,1033447141,1890175965,1099923539,-672395682,502393356,943657248,1303997989,1720664392,1665785846,-1039492718,1595197574,774758725,-2053610281,-1534714262,1345437442,-1672230605,419952338,-283135681,-1838110275,-479081611,336557930,-1949793014,-1875028898,-105344335,-56519046,-506985284,-133219342,717760806,683192729,-2023689198,-797584100,387610619,-624734334,-1559441329,98693687,482089505,1642163098,771424090,-2102473331,1596732241,365734556,-1036769400,-1828356990,-2126145962,-1880052230,-1823219244,-2049470082,509393476,671236453,-643946448,2023922389,-1548751671,892401278,935944785,1845025122,2606366,1109190367,463462894,-984871412,1522275505,-1998744585,1057016696,1516994777,899809789,-2056282797,-1401291820,1405341072,-1659079231,-1098063850,-1775584524,1167084910,-1203860934,-1739252648,1658412146,1012595405,1328031493,845785392,365563868,-100528605,1481032659,1164376938,-2054079242,-1134554344,1419213814,1277909185,445886213,1613561813,-1644599259,1372775405,873406024,-2045491203,175608234,1132364414,1741893195,987457133,-1516174339,-405450964,-82625416,-2080348235,-519820048,-1530580113,176993305,850728828,1234546812,1350393282,7645340,-1257794611,2121130236,993907753,909177413,-984538518,800661011,-1904734195,-278662786,733151654,1455681486,1139284331,-1209505346,-168824815,1337533696,482975363,-90780829,827715054,-1212852372,1387921604,-316044306,-1198197263,1352105616,-1048079677,-4901305,1981168010,801095379,-529550983,667233341,1452083482,263139143,449799980,-1248862444,1985197412,-492400093,165735080,971725205,624507096,1885720402,-1374252450,-161232591,930207515,-306696578,1260652560,564030182,-1690440424,1044398475,1605056938,606742522,-2112242920,1787970790,2130019848,1696807714,1524933943,-456086790,-883157529,-1976146447,-323217155,-954379794,1355634429,918764075,-1186630950,-522019341,-828390735,-2126970604,-632898889,200897686,1476230058,-1911364106,-650568971,1572861600,-1516942358,523475053,-1971008308,1005878714,161028307,570616773,1077436128,-935905905,1916171924,1174366911,-1237479794,-943904773,-1047765989,-1125300377,1612038834,-35000204,-107771871,-1389844782,-1028854978,1293591563,-1167839215,2058641366,1182808274,1165921662,217391223,-315998290,-1229038094,-1822001433,-187912077,1100692638,378695697,-494446180,-1554333920,-1453007041,984132648,140145595,-1955364192,-1604616878,310132848,-177965470,1135921945,1055114156,-1221961150,675514309,-339886135,2143817175,-1320546811,-587969387,-1922307056,-505386012,-1506827828,1358099373,1621629411,843462594,-523095756,409654245,-867192464,-767303534,-773094730,1813932073,-84577464,-986751055,1126894857,-322258131,1048330850,1838791977,-1571958021,-1589413718,-1006860530,-346424859,-796931837,1393120955,14855716,505786525,-643533959,113790283,1828888626,17324485,1239252261,1991762298,1912879515,-914799973,-153705403,-274048750,232854839,-373205660,-1908904817,-931491701,33790275,173335966,-2135953573,1429506244,-955312352,-1072513886,983187086,-1412830555,1596673802,1516879041,963515989,933704263,-2052288503,65844785,1488899022,17467309,-2012468492,-852978433,-1699263931,276533966,-195879488,1560790008,-276176615,1016937411,-1603358651,910685505,-1364955012,-1017437590,236760183,1725534116,-1559970395,-702952436,1234637032,121356017,-374242116,-1638850243,-1112094112,148913778,-1186882379,-1656367166,312158799,-231214470,1609361956,-2090251722,715337012,1861524823,-2039847086,2083787088,1574248546,884639223,-1790283213,-92856436,638775442,734547668,863468051,-223698491,1515381855,1781901138,-36416617,-735690133,706153569,438160177,-1033047417,1487339943,-869639204,-925445670,1808462405,50946879,394524621,706323612,765361903,1065314165,1893244412,1879968007,1342811245,1166009843,1034509870,893217566,-1044830369,2074449951,1472904622,858533177,976762486,1401081377,-565973016,245050634,-1035400908,-979069881,-1935615546,-926202838,-789344540,-1299821532,1350641492,756704389,732653660,806265358,1771619217,-1806637971,-1299526048,-921714080,1245951968,-1499933886,-514471883,961252547,-1600241058,-979445115,-480479628,829980267,941106298,525711418,-240296881,-1429532413,-1016477073,-2137745713,-312024775,-1038527564,-1311849555,1692812886,-1975257310,-1614522809,-474844608,-1048987855,-334605269,357011607,1903211848,-871403296,166496018,2132094792,-1419368974,1249301791,-987350054,942562193,-946143950,1420051882,-485339647,-1759902971,-1676860753,1291121709,-1590948176,-1991807083,717535678,-894148759,1078383725,-1440495522,-1482007412,922701385,-1987241925,-1299492863,-254338881,-85080367,1666295398,-599688957,-1946482893,1606837949,-754412071,242417931,-1226017357,806280314,1764097388,1917974438,-1229958227,-534668515,-1103786397,-820506042,-1154851989,789717163,1537236374,-1378630083,-1738305695,542601657,-1129862068,-443509507,-845081808,1242749413,-1841895320,-18012966,729844124,517133709,1010460475,621407935,886950167,1493179651,1670892287,-1735636821,-881424725,-1010583789,-817205306,1686815234,1648956571,480034744,-95853288,-580071365,1476003279,-14051860,1508713146,1014377593,246287052,1455654485,-299825011,-268747218,513105997,-217973441,-1087421795,-779996976,154630619,-1534839609,255899654,-1959670965,-1121161339,-1740773695,1523726831,-1151427033,-1847062949,29160895,16516272,-1638463703,1134544339,-1032662166,1349639910,1439005589,1928380368,-800978756,-1722212029,-22952513,-760365355,-1739833163,-1773862672,1157049676,-1921064576,-880371606,416719594,-1754108269,1125135107,603784203,-821599346,-1576981016,1853778667,-1877370610,2070635919,524486792,-1136421537,-1140216172,-380424975,1404024697,1040524592,-918006681,-2116893411,1177636017,-1813987613,-1955511204,-915346280,775660831,2187405,1193493515,282850357,-568141974,-1167613657,336694120,-1521806280,-851124730,279455890,-1046413370,175590908,-1293737519,-892109913,-1257998071,1027252794,-1034023587,-1903727290,1831115731,-514965615,201034976,692871038,-302903434,1966463954,770262050,2096457252,-749691641,-1295431555,329875092,1864688235,-57212845,1070175570,202856167,-2110628,-638892055,-834271936,-2041139586,-1112424664,-945810206,506104879,1308063270,-262599732,-636133997,-100507472,-1198494937,1845793138,-1748492529,-965757490,-266141959,391492585,999189973,-794269044,-770798309,-532268442,779907080,-1697282099,1943493379,-1768209806,-792269116,1255674906,1435887540,286132079,-1551834539,-2028799728,690667456,323944900,-498285799,-1735579108,-1638921255,1615028357,1410146618,923064790,-1219293980,-192925144,-1476773501,-1726149465,-1352524847,1574438244,-2114686162,623353945,1539583716,-1936544814,-625557109,-1850378022,-296786123,-1917306138,2119875620,-1256544066,1423959906,-1918664649,307157306,1305387685,702136856,-2081213803,2000529563,-1646669521,-1241881201,1184546978,-1831835215,-269585743,1897287603,-729993291,-760597134,-554743091,1654579694,-397248697,650970331,-355795650,-1329771447,-378714370,-1882959208,885128646,-1840808499,523033904,211461706,1458211852,1344021496,-1344629673,1554131943,221477349,-2140740438,-2094728770,433142806,149557752,-305508085,-218281914,-2038416455,1709855065,865951137,1384161526,-1566012780,-1078600774,1616115895,651299023,-1552762728,-400882637,-1986611575,1974809509,-1968890847,-1483947074,-2068264326,-872797655,-2046079536,1921907369,-188786761,1469307639,1271683050,-95806663,527928166,1979329417,1364384164,80083159,-1753357456,1926611114,1013093610,-153255278,-433637289,600352388,1910113175,843281291,1079529553,539335608,1188911425,1746072188,2068013213,-307008226,-2104701177,391742678,-360150762,-2144133911,-1645746788,2051312314,430425483,324855823,-1205225244,-1034678099,-374050393,-946043456,1955424182,-975669769,762276854,-857314060,-998560693,-578052362,-1499553884,-291351290,1690326096,-591580249,94377739,-833906175,779958138,-2058085455,2028279384,798645864,-210589242,-1701325717,1940788165,-1045317424,-542976023,-844552550,1946293243,999250251,550920105,-1604735723,-416716967,1252174709,1300291386,-212188266,558001247,1054248821,893180224,-512100532,1980317548,1843800547,1074809575,-1511651738,2138031004,1515134667,58860384,1582495396,-170570642,-304257926,384838318,1301853571,-472575317,-2096166160,872932967,-1378669788,1335144781,-369148539,-885736967,-1811935563,149328226,-1421003447,311538186,1956348216,-1365769595,-31766439,-2132925211,1029568641,637046469,-601862137,-1573470551,815916176,2050335435,-1089555714,-1421711902,-480591687,325317125,1812614504,1332755845,-1033971972,-655911794,-1637243605,-600594122,2025215381,-1315034565,154297519,2053584813,1409535141,535910440,-1934356819,-895408955,1459135497,-604295372,883658489,703051130,1914030205,-1753105422,-1714841549,-1961113770,1893921502,867246850,844199983,-2025624521,1674457409,1144662859,-468434663,-152996295,860208855,1930563111,1299410111,-2126368622,1091932033,-1448695275,1259662135,748635992,-1836079659,1227975603,482667487,-89159812,-2075380707,1690536291,690076925,969296919,-1166874454,632349224,-1062484194,1049070721,370601979,-1513703034,904680186,-2042648983,-1907617059,2057813156,1123068287,-1012199070,-1114398061,925087610,1475556409,1875246208,2064922467,1573376728,784287628,-1926896999,1298177385,-909654206,-685966616,262509527,1900749289,511092653,369721886,736217480,-1875147238,1542350551,-672901527,-370125508,-72120016,-1592799810,-918670348,-521498789,1115367753,2046442295,-893958995,1906215645,-467522783,-1170032566,-1300835752,1130820842,162830643,-1690938757,1210214650,981590209,-211648942,1188530149,-280172162,-1995919837,710932903,181857257,-1697875030,-1345614003,264465643,-379825717,-2076882578,533200158,-577398117,-687179673,-1313061805,-342997765,1180392947,1328950321,142178060,-367975685,1352221793,-760017623,1108050233,-611654777,871794052,238653167,1063358622,1283516056,-280337387,154958994,-92913881,-172712666,629480492,768999156,2003025250,-424053337,590906940,-1879159956,-146182503,1439644808,-1860335561,-1859965811,-1423950573,1431458228,-1416222855,1959538097,-1454392165,2099726725,1035870658,-1515465314,9698996,-723565764,-992591845,2082159340,655766253,-1254207960,203944385,-1959022703,-2009515897,-260196031,-626768058,-1539423197,784706541,-1964155249,993855571,-2083804049,1215008054,593156823,-13878337,1263752775,1073726159,986390186,-1726133962,-1360419847,-1072041758,447894757,-929769051,-571041888,1033841466,1583464646,911587120,-57607189,1459059972,-2094338290,1603664502,1934366767,356865128,1475176013,-172402483,1113038729,-41796291,272570950,186801301,1723843249,1587180766,360416223,-1808641695,994893307,802397304,-540255740,-1256861600,1349533949,33192664,-1443816258,2027772712]
-		switch(type) {
-			case 'minimal': bmak.type = 'minimal',
-			bmak.formInfo = '',
-			bmak.updatet = lodash.random(1,10);
-			bmak.td = -999999;
-			bmak.pe_cnt = 0;
-			bmak.fmh = await calculateFontHash()
-			bmak.ssh = voicesHash()
-			bmak.wv = fingerprint.webGl.vendor;
-			bmak.wr = fingerprint.webGl.renderer;
-			bmak.weh = eh;
-			bmak.wl = el;
-			bmak.s = lodash.random(1,10);
-			bmak.aj_type = 0;
-			bmak.aj_indx = 0;
-			bmak.getmr = '-1';
-			bmak.nav_perm = '';
-			bmak.fpValstr = '-1';
-			bmak.p = 94;
-			bmak.y = -1;
-			break;
-
-			case 'nomouse': bmak.type = 'nomouse',
-			bmak.updatet = add_random;
-			bmak.td = lodash.random(40, 200);
-			bmak.pe_cnt = 0;
-			bmak.fmh = await calculateFontHash();
-			bmak.ssh = voicesHash();
-			bmak.weh = webGlExtentionsHash();
-			bmak.wv = fingerprint.webGl.vendor;
-			bmak.wr = fingerprint.webGl.renderer;
-			bmak.s = bmak.updatet + 1;
-			bmak.aj_type = 9;
-			bmak.aj_indx = 1;
-			bmak.getmr = await getmr();
-			bmak.nav_perm = '01321144241322243122';
-			bmak.fpValstr = data(bmak.ua_browser).replace(/"/g, "\"")
-			bmak.p = ab(bmak.fpValstr);
-			bmak.z = canvasArray[bmak.y].toString();
-			bmak.tst = lodash.random(10, 70);
-			break;
-
-			case 'mouse': bmak.type = 'mouse',
-			bmak.genmouse = genMouseData(bmak);
-			bmak.updatet = add_random;
-			bmak.td = lodash.random(40, 200);
-			bmak.pe_cnt = lodash.random(3,7);
-			bmak.ssh = voicesHash()
-			bmak.weh = webGlExtentionsHash();
-			bmak.wv = fingerprint.webGl.vendor;
-			bmak.wr = fingerprint.webGl.renderer;
-			bmak.s = bmak.updatet + 1;
-			bmak.fmh = await calculateFontHash()
-			bmak.aj_type = 1;
-			bmak.aj_indx = 2;
-			bmak.getmr = await getmr();
-			bmak.nav_perm = '01321144241322243122';
-			bmak.fpValstr = data(bmak.ua_browser).replace(/"/g, "\"")
-			bmak.p = ab(bmak.fpValstr);
-			bmak.z = canvasArray[bmak.y].toString();
-			bmak.tst = lodash.random(10, 70);
-			break;
-		}
-	}
-
-	function verify_abck(abck, site) {
-		abck = abck.toString();
-		writeToFile(`${abck}\n`);
-		cookie_counter++;
-		logger.purple(`Cookie #${cookie_counter}`)
-		return site.valid_check.every(i => !i.includes("!") && abck.includes(i.replace("!", "")) || i.includes("!") && !abck.includes(i.replace("!", ""))) ? {
-			success: true,
-			abck: abck
-		} : {
-			success: false,
-			abck: abck
-		}
-	}
-
-	/**
-	 * ! {Browser Functions}
-	 */
-// DONE GIT ADDED CHECK IF NAVIGATOR IS BRAVE
-	function gd(ua_browser, userAgent, bmak) {
-		var screen_size = Object.values(fingerprint.screen),
-			a = userAgent,
-			t = "" + ab(a),
-			e = bmak.start_ts / 2,
-			n = screen_size[0],
-			o = screen_size[1],
-			m = screen_size[0],
-			r = screen_size[1],
-			i = screen_size[0],
-			c = screen_size[1],
-			b = screen_size[0];
-		bmak.z1 = parseInt(bmak.start_ts / (2016 * 2016));
-		console.log(screen_size)
-		var d = Math.random(),
-			k = parseInt((1e3 * d) / 2),
-			l = d + "";
-		return ((l = l.slice(0, 11) + k), get_browser(ua_browser, bmak), bc(ua_browser, bmak), bmisc(bmak), a + ",uaend," + bmak.xagg + "," + bmak.psub + "," + bmak.lang + "," + bmak.prod + "," + bmak.plen + "," + bmak.pen + "," + bmak.wen + "," + bmak.den + "," + bmak.z1 + "," + bmak.d3 + "," + n + "," + o + "," + m + "," + r + "," + i + "," + c + "," + b + "," + bd(ua_browser) + "," + t + "," + l + "," + e + "," + bmak.brv + ",loc:" + bmak.loc);
-	}
-
-	function screenSize() {
-		logger.white(browserData[dataNum].resolutions)
-		try{
-			JSON.parse(browserData[dataNum].resolutions)
-			return JSON.parse(browserData[dataNum].resolutions);
-		} catch(e){
-			return lodash.sample([
-				['1098', '686', '1098', '686', '1098', '583', '1098'],
-				['1280', '680', '1280', '720', '1280', '578', '1280'],
-				['1440', '776', '1440', '900', '1440', '660', '1440'],
-				['1440', '826', '1440', '900', '1440', '746', '1440'],
-				['1440', '860', '1440', '900', '1440', '757', '1440'],
-				['1440', '831', '1440', '900', '1440', '763', '1440'],
-				['1440', '851', '1440', '900', '1420', '770', '1420'],
-				['1440', '786', '1440', '900', '1440', '789', '1440'],
-				['1440', '900', '1440', '900', '920', '789', '1440'],
-				['1440', '900', '1440', '900', '1440', '821', '1440'],
-				['1536', '824', '1536', '864', '1536', '722', '1536'],
-				['1680', '972', '1680', '1050', '1680', '939', '1680'],
-				['1680', '1020', '1680', '1050', '1680', '917', '1680'],
-				['1920', '1040', '1920', '1080', '1920', '937', '1920'],
-				['1920', '1040', '1920', '1080', '1920', '969', '1920'],
-				['1920', '1080', '1920', '1080', '1920', '1007', '1920'],
-				['2560', '1400', '2560', '1440', '2560', '1327', '2576'],
-				['1024', '1024', '1024', '1024', '1024', '1024', '1024'],
-				['1680', '973', '1680', '1050', '1133', '862', '1680'],
-				['1680', '973', '1680', '1050', '1680', '862', '1680'],
-				['1024', '768', '1024', '768', '1256', '605', '1272'],
-				['1360', '728', '1360', '768', '1360', '625', '1358'],
-				['1440', '797', '1440', '900', '1440', '685', '1440']
-			]);
-		}
-	}
-
-	function get_browser(ua_browser, bmak) {
-		bmak.psub = productSub(ua_browser),
-		bmak.lang = "en-US",
-		bmak.prod = "Gecko",
-		bmak.plen = pluginsLength(ua_browser);
-	}
-
-	function pluginsLength(browser) {
-		switch (browser) {
-			case "chrome":
-				return 3;
-			case "ie":
-				return 1;
-			case "opera":
-				return 1;
-			case "firefox":
-				return 0;
-			case "safari":
-				return 1;
-		}
-	}
-
-	function productSub(browser) {
-		switch (browser) {
-			case "chrome":
-				return 20030107;
-			case "ie":
-				return 20030107;
-			case "opera":
-				return 20030107;
-			case "firefox":
-				return 20100101;
-			case "safari":
-				return 20030107;
-		}
-	}
-
-	function touchEvent(browser) {
-		switch (browser) {
-			case "chrome":
-				return 1;
-			case "ie":
-				return 0;
-			case "opera":
-				return 1;
-			case "firefox":
-				return 1;
-			case "safari":
-				return 0;
-		}
-	}
-
-	function chrome(browser) {
-		switch (browser) {
-			case "chrome":
-				return 1;
-			default:
-				return 0;
-		}
-	}
-
-	function bc(ua_browser, bmak) {
-		var a = 1,
-			t = 1,
-			e = 0,
-			n = 0,
-			o = 1,
-			m = 1,
-			r = touchEvent(ua_browser),
-			i = 0,
-			c = 1,
-			b = 1,
-			d = chrome(ua_browser),
-			k = 1,
-			l = 0,
-			s = 1;
-		bmak.xagg =
-			a +
-			(t << 1) +
-			(e << 2) +
-			(n << 3) +
-			(o << 4) +
-			(m << 5) +
-			(r << 6) +
-			(i << 7) +
-			(c << 8) +
-			(b << 9) +
-			(d << 10) +
-			(k << 11) +
-			(l << 12) +
-			(s << 13);
-	}
-
-	function bmisc(bmak) {
-		bmak.pen = 0,
-		bmak.wen = 0,
-		bmak.den = 0;
-	}
-
-	function bd(browser) {
-		switch (browser) {
-			case "chrome":
-				return [",cpen:0", "i1:0", "dm:0", "cwen:0", "non:1", "opc:0", "fc:0", "sc:0", "wrc:1", "isc:0", "vib:1", "bat:1", "x11:0", "x12:1"].join(",");
-			case "ie":
-				return [",cpen:0", "i1:1", "dm:1", "cwen:0", "non:1", "opc:0", "fc:0", "sc:0", "wrc:0", "isc:0", "vib:0", "bat:0", "x11:0", "x12:1"].join(",");
-			case "opera":
-				return [",cpen:0", "i1:0", "dm:0", "cwen:0", "non:1", "opc:1", "fc:0", "sc:0", "wrc:1", "isc:0", "vib:0", "bat:1", "x11:0", "x12:1"].join(",");
-			case "firefox":
-				return [",cpen:0", "i1:0", "dm:0", "cwen:0", "non:1", "opc:0", "fc:1", "sc:0", "wrc:1", "isc:1", "vib:1", "bat:0", "x11:0", "x12:1"].join(",");
-			case "safari":
-				return [",cpen:0", "i1:0", "dm:0", "cwen:0", "non:1", "opc:0", "fc:0", "sc:0", "wrc:1", "isc:0", "vib:0", "bat:0", "x11:0", "x12:1"].join(",");
-		}
-	}
-
-	function pluginInfo(browser) {
-		switch (browser) {
-			case "chrome":
-				return [",7,8"];
-			case "ie":
-				return [""];
-			case "opera":
-				return [""];
-			case "firefox":
-				return [",3"];
-			case "safari":
-				return [""];
-		}
-	}
-
-	function webrtcKey(browser) {
-		switch (browser) {
-			case "chrome":
-				return true;
-			case "ie":
-				return false;
-			case "opera":
-				return true;
-			case "firefox":
-				return true;
-			case "safari":
-				return true;
-		}
-	}
-
-	function data(ua_browser) {
-		// -36060876;-1849314799;
-		return [canvas(), canvas_2(), "dis", pluginInfo(ua_browser), true, true, true, ((new Date).getTimezoneOffset()), webrtcKey(ua_browser), 24, 24, true, false, "1"].filter(x => x !== null).join(";")
-	}
-
-	function sed() {
-		return [0, 0, 0, 0, 1, 0, 0].join(",");
-	}
-
-	function canvas() {
-		return browserData[dataNum].canvas1;
-		// return lodash.sample([-1151536724, -1152944628, -1259079336, -1618588580, -1752250632, -1752591854, -1880212897, -36060876, -434613739, -509993527, -52233038, -739578230, -746822318, 1112667908, 1454252292, 1544133244, 1637755981, 59688812, 73331404, 763748173]).toString();
-	}
-
-	function canvas_2() {
-		return browserData[dataNum].canvas2;
-		// return lodash.sample([-1849314799, 66351601, 1396487819]).toString();
-	}
-
-	async function getmr() {
-		var mr;
-		await win.webContents.executeJavaScript(`function x() {
+                abck = response;
+                console.log(abck);
+                var verify = verify_abck(abck, site, true);
+                verify.success ? logger_1.default.green(JSON.stringify(verify)) && writeToFile(abck) : logger_1.default.red(JSON.stringify(verify));
+                if (cookie_counter < 4) {
+                    init(site, userAgent, ua_browser, proxy, abck, url, formInfo);
+                }
+            });
+        });
+    }
+    function gen_key(sensor_data, bmak) {
+        var a = get_cf_date();
+        var y = od("0a46G5m17Vrp4o4c", "afSbep8yjnZUjq3aL010jO15Sawj2VZfdYK8uY90uxq").slice(0, 16);
+        var w = Math.floor(get_cf_date() / 36e5);
+        var j = get_cf_date();
+        var E = y + od(w, y) + sensor_data;
+        sensor_data = E + ";" + lodash_1.default.random(2, 22) + ";" + bmak.tst + ";" + (get_cf_date() - j);
+        return sensor_data;
+    }
+    function rir(a, t, e, n) {
+        return a > t && a <= e && (a += n % (e - t)) > e && (a = a - e + t), a;
+    }
+    function get_cf_date(start) {
+        if (Date.now) {
+            return (start ? new Date(Date.now()).getTime() : Date.now());
+        }
+        else {
+            return (start ? new Date(+new Date()).getTime() : +new Date());
+        }
+    }
+    function getCookieVal(name, details) {
+        if (!details.requestHeaders['Cookie'].includes(name))
+            return details;
+        details.requestHeaders['Cookie'] = details.requestHeaders['Cookie'].replace(name + '=' + details.requestHeaders['Cookie'].split(`${name}=`)[1].split(';')[0] + ';', '');
+        return details;
+    }
+    function intercept() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const filter = {
+                urls: ['https://www.footlocker.com/assets/*']
+            };
+            var count = 0;
+            win.webContents.session.webRequest.onBeforeSendHeaders(filter, (details, callback) => __awaiter(this, void 0, void 0, function* () {
+                if (details.method == 'POST') {
+                    details.uploadData.forEach((part) => __awaiter(this, void 0, void 0, function* () {
+                        console.log(part.bytes.toString('utf8'));
+                    }));
+                    // details = await getCookieVal('check', details);
+                    // details = await getCookieVal('mbox', details);
+                    // details = await getCookieVal('AMCV_40A3741F578E26BA7F000101%40AdobeOrg', details);
+                    // details = await getCookieVal('AMCVS_40A3741F578E26BA7F000101%40AdobeOrg', details);
+                    // var cleanStr = details.requestHeaders['Cookie'].split('_abck=')[1].split(';')[0];
+                    // details.requestHeaders['Cookie'] = details.requestHeaders['Cookie'].replace(cleanStr, 'C43E5257DCBECA8C1CC90B7E58F8DB0B~-1~YAAQlKoRYGHr6L1xAQAAuSd56APej+pd8yvTOQZiA34H1E7S1949T54xNYRsHrzJPgrjz9TI6+RD+0cP2jD3j3tgvUR9w06jpMyNik1opsQlt/6uvGIwWo/SKsXZovhTZaZwf9BAQken1lIaO3s3P8EnD8gT5LzW2ms9ojoBZD3oN3E58PgWMD12IQX1px//S3yJIqEvYoAv1OLIyeNUbXzbY1B6CSGTjhfVQlQLCq0GBlh469XLsXoNyaSK5gJyzhPp3xNxa/Vdy3V9RPANY2r08wT5TAnoiYPlhHoEOt45QYQrOSNCCtJKoyhpoA==~-1~-1~-1')
+                    // sensor;
+                    // if(count == 0) sensor = `7a74G7m23Vrp0o5c9165131.54-1,2,-94,-100,Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36,uaend,12147,20030107,en-US,Gecko,3,0,0,0,390898,1040935,1440,832,1440,900,1440,821,1440,,cpen:0,i1:0,dm:0,cwen:0,non:1,opc:0,fc:0,sc:0,wrc:1,isc:0,vib:1,bat:1,x11:0,x12:1,8931,0.646547378323,794355520407.5,loc:-1,2,-94,-101,do_en,dm_en,t_en-1,2,-94,-105,-1,2,-94,-102,-1,2,-94,-108,-1,2,-94,-110,-1,2,-94,-117,-1,2,-94,-111,-1,2,-94,-109,-1,2,-94,-114,-1,2,-94,-103,-1,2,-94,-112,https://www.footlocker.com/-1,2,-94,-115,1,32,32,0,0,0,0,9,0,1588711040815,-999999,16995,0,0,2832,0,0,10,0,0,${abck},29544,-1,-1,30261693-1,2,-94,-106,0,0-1,2,-94,-119,-1-1,2,-94,-122,0,0,0,0,1,0,0-1,2,-94,-123,-1,2,-94,-124,-1,2,-94,-126,-1,2,-94,-127,-1,2,-94,-70,-1-1,2,-94,-80,94-1,2,-94,-116,46842240-1,2,-94,-118,74881-1,2,-94,-121,;18;-1;0`
+                    // if(count == 1) sensor = `7a74G7m23Vrp0o5c9165131.54-1,2,-94,-100,Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36,uaend,12147,20030107,en-US,Gecko,3,0,0,0,390898,1040999,1440,832,1440,900,1440,821,1440,,cpen:0,i1:0,dm:0,cwen:0,non:1,opc:0,fc:0,sc:0,wrc:1,isc:0,vib:1,bat:1,x11:0,x12:1,8931,0.882576068441,794355520470,loc:-1,2,-94,-101,do_en,dm_en,t_en-1,2,-94,-105,-1,2,-94,-102,-1,2,-94,-108,-1,2,-94,-110,-1,2,-94,-117,-1,2,-94,-111,-1,2,-94,-109,-1,2,-94,-114,-1,2,-94,-103,-1,2,-94,-112,https://www.footlocker.com/-1,2,-94,-115,1,32,32,0,0,0,0,1569,0,1588711040940,106,16995,0,0,2832,0,0,1570,0,0,${abck},29544,516,16516272,30261693-1,2,-94,-106,9,1-1,2,-94,-119,29,50,33,34,113,18,11,8,7,5,5,1178,1332,335,-1,2,-94,-122,0,0,0,0,1,0,0-1,2,-94,-123,-1,2,-94,-124,-1,2,-94,-126,-1,2,-94,-127,01321144241322243122-1,2,-94,-70,-36060876;-1849314799;dis;,7,8;true;true;true;240;true;24;24;true;false;1-1,2,-94,-80,5497-1,2,-94,-116,5205005-1,2,-94,-118,78285-1,2,-94,-121,;16;18;0`
+                    // 	var responseData = Buffer.from(sensor, 'utf8');
+                    // 	count++
+                    // 	callback({cancel: 'true', beforeSendResponse: {"sensor_data":"foo"}, requestHeaders: details.requestHeaders})
+                    // })
+                    // const request = net.request(details)
+                    // request.on('response', res => {
+                    // 	const chunks = []
+                    // 	res.on('data', chunk => {
+                    // 		chunks.push(Buffer.from(chunk))
+                    // 	})
+                    // 	res.on('end', async() => {
+                    // 		const file = Buffer.concat(chunks)
+                    // 		callback(file)
+                    // 	})
+                    // })
+                    // if (details.uploadData) {
+                    // 	details.uploadData.forEach(part => {
+                    // 		if (part.bytes) {
+                    // 			request.write(part.bytes)
+                    // 		} else if (part.file) {
+                    // 			request.write(fs.readFileSync(part.file))
+                    // 		}
+                    // })
+                    // }
+                    // request.end()
+                    callback({ cancel: true, requestHeaders: details.requestHeaders });
+                }
+                else {
+                    details.requestHeaders['User-Agent'] = 'MyAgent';
+                    callback({ cancel: false, requestHeaders: details.requestHeaders });
+                }
+            }));
+            // count = 0;
+            // win.webContents.session.protocol.interceptHttpProtocol('https', (req, callback) => {
+            // 	if (req.url == 'https://www.footlocker.com/assets/ea4ac69816262992aff5b862e75c' && req.method == 'POST') {
+            // 		console.log(req)
+            // 		req.uploadData.forEach(part => {
+            // 			console.log(part.bytes.toString('utf8'))
+            // 			var abck = 'foo',
+            // 			sensor;
+            // 			if(count == 0) sensor = `7a74G7m23Vrp0o5c9165131.54-1,2,-94,-100,Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36,uaend,12147,20030107,en-US,Gecko,3,0,0,0,390898,1040935,1440,832,1440,900,1440,821,1440,,cpen:0,i1:0,dm:0,cwen:0,non:1,opc:0,fc:0,sc:0,wrc:1,isc:0,vib:1,bat:1,x11:0,x12:1,8931,0.646547378323,794355520407.5,loc:-1,2,-94,-101,do_en,dm_en,t_en-1,2,-94,-105,-1,2,-94,-102,-1,2,-94,-108,-1,2,-94,-110,-1,2,-94,-117,-1,2,-94,-111,-1,2,-94,-109,-1,2,-94,-114,-1,2,-94,-103,-1,2,-94,-112,https://www.footlocker.com/-1,2,-94,-115,1,32,32,0,0,0,0,9,0,1588711040815,-999999,16995,0,0,2832,0,0,10,0,0,${abck},29544,-1,-1,30261693-1,2,-94,-106,0,0-1,2,-94,-119,-1-1,2,-94,-122,0,0,0,0,1,0,0-1,2,-94,-123,-1,2,-94,-124,-1,2,-94,-126,-1,2,-94,-127,-1,2,-94,-70,-1-1,2,-94,-80,94-1,2,-94,-116,46842240-1,2,-94,-118,74881-1,2,-94,-121,;18;-1;0`
+            // 			if(count == 1) sensor = `7a74G7m23Vrp0o5c9165131.54-1,2,-94,-100,Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_3) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/80.0.3987.163 Safari/537.36,uaend,12147,20030107,en-US,Gecko,3,0,0,0,390898,1040999,1440,832,1440,900,1440,821,1440,,cpen:0,i1:0,dm:0,cwen:0,non:1,opc:0,fc:0,sc:0,wrc:1,isc:0,vib:1,bat:1,x11:0,x12:1,8931,0.882576068441,794355520470,loc:-1,2,-94,-101,do_en,dm_en,t_en-1,2,-94,-105,-1,2,-94,-102,-1,2,-94,-108,-1,2,-94,-110,-1,2,-94,-117,-1,2,-94,-111,-1,2,-94,-109,-1,2,-94,-114,-1,2,-94,-103,-1,2,-94,-112,https://www.footlocker.com/-1,2,-94,-115,1,32,32,0,0,0,0,1569,0,1588711040940,106,16995,0,0,2832,0,0,1570,0,0,${abck},29544,516,16516272,30261693-1,2,-94,-106,9,1-1,2,-94,-119,29,50,33,34,113,18,11,8,7,5,5,1178,1332,335,-1,2,-94,-122,0,0,0,0,1,0,0-1,2,-94,-123,-1,2,-94,-124,-1,2,-94,-126,-1,2,-94,-127,01321144241322243122-1,2,-94,-70,-36060876;-1849314799;dis;,7,8;true;true;true;240;true;24;24;true;false;1-1,2,-94,-80,5497-1,2,-94,-116,5205005-1,2,-94,-118,78285-1,2,-94,-121,;16;18;0`
+            // 				var responseData = Buffer.from(sensor, 'utf8');
+            // 				count++
+            // 				// callback({uploadData: responseData, requestHeaders: details.requestHeaders})
+            // 				callback(responseData)
+            // 				return;
+            // 				const request = net.request(req)
+            // 		request.on('response', res => {
+            // 			const chunks = []
+            // 			res.on('data', chunk => {
+            // 				chunks.push(Buffer.from(chunk))
+            // 			})
+            // 			res.on('end', async() => {
+            // 				const file = Buffer.concat(chunks)
+            // 				callback(file)
+            // 			})
+            // 		})
+            // 		if (req.uploadData) {
+            // 			console.log('upload data')
+            // 			req.uploadData.forEach(part => {
+            // 				if (part.bytes) {
+            // 					request.write(responseData)
+            // 				} else if (part.file) {
+            // 					request.write(fs.readFileSync(part.file))
+            // 				}
+            // 			})
+            // 		}
+            // 		request.end()
+            // 		})
+            // 	} else {
+            // 		console.log(req)
+            // 	const request = net.request(req)
+            // 	request.on('response', res => {
+            // 		const chunks = []
+            // 		res.on('data', chunk => {
+            // 			chunks.push(Buffer.from(chunk))
+            // 		})
+            // 		res.on('end', async() => {
+            // 			const file = Buffer.concat(chunks)
+            // 			callback(file)
+            // 		})
+            // 	})
+            // 	if (req.uploadData) {
+            // 		req.uploadData.forEach(part => {
+            // 			if (part.bytes) {
+            // 				request.write(part.bytes)
+            // 			} else if (part.file) {
+            // 				request.write(fs.readFileSync(part.file))
+            // 			}
+            // 		})
+            // 	}
+            // 	request.end()
+            // }
+            // })
+        });
+    }
+    function switcher(type, bmak) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const [eh, el] = webGlExtentionsHash();
+            console.log(eh, el);
+            var add_random = lodash_1.default.random(600, 1600);
+            var canvasArray = [-258688526, -380229768, -910147602, -642074913, 1454575003, -1627350430, -2087321731, -552230799, 681622556, 1468298035, -968659517, 792904753, 1872114383, -768838012, -1422808916, -1690440540, 918177569, -299824332, -1100926242, 590387504, 1204914753, -850342987, 1434960077, -184491859, -252924566, -1590637647, -906906434, 1994921761, -1014216413, 490096504, 1377200418, -320790731, -1003491391, -1593598986, -1959133361, -2024885122, 473012774, -329194412, 1033447141, 1890175965, 1099923539, -672395682, 502393356, 943657248, 1303997989, 1720664392, 1665785846, -1039492718, 1595197574, 774758725, -2053610281, -1534714262, 1345437442, -1672230605, 419952338, -283135681, -1838110275, -479081611, 336557930, -1949793014, -1875028898, -105344335, -56519046, -506985284, -133219342, 717760806, 683192729, -2023689198, -797584100, 387610619, -624734334, -1559441329, 98693687, 482089505, 1642163098, 771424090, -2102473331, 1596732241, 365734556, -1036769400, -1828356990, -2126145962, -1880052230, -1823219244, -2049470082, 509393476, 671236453, -643946448, 2023922389, -1548751671, 892401278, 935944785, 1845025122, 2606366, 1109190367, 463462894, -984871412, 1522275505, -1998744585, 1057016696, 1516994777, 899809789, -2056282797, -1401291820, 1405341072, -1659079231, -1098063850, -1775584524, 1167084910, -1203860934, -1739252648, 1658412146, 1012595405, 1328031493, 845785392, 365563868, -100528605, 1481032659, 1164376938, -2054079242, -1134554344, 1419213814, 1277909185, 445886213, 1613561813, -1644599259, 1372775405, 873406024, -2045491203, 175608234, 1132364414, 1741893195, 987457133, -1516174339, -405450964, -82625416, -2080348235, -519820048, -1530580113, 176993305, 850728828, 1234546812, 1350393282, 7645340, -1257794611, 2121130236, 993907753, 909177413, -984538518, 800661011, -1904734195, -278662786, 733151654, 1455681486, 1139284331, -1209505346, -168824815, 1337533696, 482975363, -90780829, 827715054, -1212852372, 1387921604, -316044306, -1198197263, 1352105616, -1048079677, -4901305, 1981168010, 801095379, -529550983, 667233341, 1452083482, 263139143, 449799980, -1248862444, 1985197412, -492400093, 165735080, 971725205, 624507096, 1885720402, -1374252450, -161232591, 930207515, -306696578, 1260652560, 564030182, -1690440424, 1044398475, 1605056938, 606742522, -2112242920, 1787970790, 2130019848, 1696807714, 1524933943, -456086790, -883157529, -1976146447, -323217155, -954379794, 1355634429, 918764075, -1186630950, -522019341, -828390735, -2126970604, -632898889, 200897686, 1476230058, -1911364106, -650568971, 1572861600, -1516942358, 523475053, -1971008308, 1005878714, 161028307, 570616773, 1077436128, -935905905, 1916171924, 1174366911, -1237479794, -943904773, -1047765989, -1125300377, 1612038834, -35000204, -107771871, -1389844782, -1028854978, 1293591563, -1167839215, 2058641366, 1182808274, 1165921662, 217391223, -315998290, -1229038094, -1822001433, -187912077, 1100692638, 378695697, -494446180, -1554333920, -1453007041, 984132648, 140145595, -1955364192, -1604616878, 310132848, -177965470, 1135921945, 1055114156, -1221961150, 675514309, -339886135, 2143817175, -1320546811, -587969387, -1922307056, -505386012, -1506827828, 1358099373, 1621629411, 843462594, -523095756, 409654245, -867192464, -767303534, -773094730, 1813932073, -84577464, -986751055, 1126894857, -322258131, 1048330850, 1838791977, -1571958021, -1589413718, -1006860530, -346424859, -796931837, 1393120955, 14855716, 505786525, -643533959, 113790283, 1828888626, 17324485, 1239252261, 1991762298, 1912879515, -914799973, -153705403, -274048750, 232854839, -373205660, -1908904817, -931491701, 33790275, 173335966, -2135953573, 1429506244, -955312352, -1072513886, 983187086, -1412830555, 1596673802, 1516879041, 963515989, 933704263, -2052288503, 65844785, 1488899022, 17467309, -2012468492, -852978433, -1699263931, 276533966, -195879488, 1560790008, -276176615, 1016937411, -1603358651, 910685505, -1364955012, -1017437590, 236760183, 1725534116, -1559970395, -702952436, 1234637032, 121356017, -374242116, -1638850243, -1112094112, 148913778, -1186882379, -1656367166, 312158799, -231214470, 1609361956, -2090251722, 715337012, 1861524823, -2039847086, 2083787088, 1574248546, 884639223, -1790283213, -92856436, 638775442, 734547668, 863468051, -223698491, 1515381855, 1781901138, -36416617, -735690133, 706153569, 438160177, -1033047417, 1487339943, -869639204, -925445670, 1808462405, 50946879, 394524621, 706323612, 765361903, 1065314165, 1893244412, 1879968007, 1342811245, 1166009843, 1034509870, 893217566, -1044830369, 2074449951, 1472904622, 858533177, 976762486, 1401081377, -565973016, 245050634, -1035400908, -979069881, -1935615546, -926202838, -789344540, -1299821532, 1350641492, 756704389, 732653660, 806265358, 1771619217, -1806637971, -1299526048, -921714080, 1245951968, -1499933886, -514471883, 961252547, -1600241058, -979445115, -480479628, 829980267, 941106298, 525711418, -240296881, -1429532413, -1016477073, -2137745713, -312024775, -1038527564, -1311849555, 1692812886, -1975257310, -1614522809, -474844608, -1048987855, -334605269, 357011607, 1903211848, -871403296, 166496018, 2132094792, -1419368974, 1249301791, -987350054, 942562193, -946143950, 1420051882, -485339647, -1759902971, -1676860753, 1291121709, -1590948176, -1991807083, 717535678, -894148759, 1078383725, -1440495522, -1482007412, 922701385, -1987241925, -1299492863, -254338881, -85080367, 1666295398, -599688957, -1946482893, 1606837949, -754412071, 242417931, -1226017357, 806280314, 1764097388, 1917974438, -1229958227, -534668515, -1103786397, -820506042, -1154851989, 789717163, 1537236374, -1378630083, -1738305695, 542601657, -1129862068, -443509507, -845081808, 1242749413, -1841895320, -18012966, 729844124, 517133709, 1010460475, 621407935, 886950167, 1493179651, 1670892287, -1735636821, -881424725, -1010583789, -817205306, 1686815234, 1648956571, 480034744, -95853288, -580071365, 1476003279, -14051860, 1508713146, 1014377593, 246287052, 1455654485, -299825011, -268747218, 513105997, -217973441, -1087421795, -779996976, 154630619, -1534839609, 255899654, -1959670965, -1121161339, -1740773695, 1523726831, -1151427033, -1847062949, 29160895, 16516272, -1638463703, 1134544339, -1032662166, 1349639910, 1439005589, 1928380368, -800978756, -1722212029, -22952513, -760365355, -1739833163, -1773862672, 1157049676, -1921064576, -880371606, 416719594, -1754108269, 1125135107, 603784203, -821599346, -1576981016, 1853778667, -1877370610, 2070635919, 524486792, -1136421537, -1140216172, -380424975, 1404024697, 1040524592, -918006681, -2116893411, 1177636017, -1813987613, -1955511204, -915346280, 775660831, 2187405, 1193493515, 282850357, -568141974, -1167613657, 336694120, -1521806280, -851124730, 279455890, -1046413370, 175590908, -1293737519, -892109913, -1257998071, 1027252794, -1034023587, -1903727290, 1831115731, -514965615, 201034976, 692871038, -302903434, 1966463954, 770262050, 2096457252, -749691641, -1295431555, 329875092, 1864688235, -57212845, 1070175570, 202856167, -2110628, -638892055, -834271936, -2041139586, -1112424664, -945810206, 506104879, 1308063270, -262599732, -636133997, -100507472, -1198494937, 1845793138, -1748492529, -965757490, -266141959, 391492585, 999189973, -794269044, -770798309, -532268442, 779907080, -1697282099, 1943493379, -1768209806, -792269116, 1255674906, 1435887540, 286132079, -1551834539, -2028799728, 690667456, 323944900, -498285799, -1735579108, -1638921255, 1615028357, 1410146618, 923064790, -1219293980, -192925144, -1476773501, -1726149465, -1352524847, 1574438244, -2114686162, 623353945, 1539583716, -1936544814, -625557109, -1850378022, -296786123, -1917306138, 2119875620, -1256544066, 1423959906, -1918664649, 307157306, 1305387685, 702136856, -2081213803, 2000529563, -1646669521, -1241881201, 1184546978, -1831835215, -269585743, 1897287603, -729993291, -760597134, -554743091, 1654579694, -397248697, 650970331, -355795650, -1329771447, -378714370, -1882959208, 885128646, -1840808499, 523033904, 211461706, 1458211852, 1344021496, -1344629673, 1554131943, 221477349, -2140740438, -2094728770, 433142806, 149557752, -305508085, -218281914, -2038416455, 1709855065, 865951137, 1384161526, -1566012780, -1078600774, 1616115895, 651299023, -1552762728, -400882637, -1986611575, 1974809509, -1968890847, -1483947074, -2068264326, -872797655, -2046079536, 1921907369, -188786761, 1469307639, 1271683050, -95806663, 527928166, 1979329417, 1364384164, 80083159, -1753357456, 1926611114, 1013093610, -153255278, -433637289, 600352388, 1910113175, 843281291, 1079529553, 539335608, 1188911425, 1746072188, 2068013213, -307008226, -2104701177, 391742678, -360150762, -2144133911, -1645746788, 2051312314, 430425483, 324855823, -1205225244, -1034678099, -374050393, -946043456, 1955424182, -975669769, 762276854, -857314060, -998560693, -578052362, -1499553884, -291351290, 1690326096, -591580249, 94377739, -833906175, 779958138, -2058085455, 2028279384, 798645864, -210589242, -1701325717, 1940788165, -1045317424, -542976023, -844552550, 1946293243, 999250251, 550920105, -1604735723, -416716967, 1252174709, 1300291386, -212188266, 558001247, 1054248821, 893180224, -512100532, 1980317548, 1843800547, 1074809575, -1511651738, 2138031004, 1515134667, 58860384, 1582495396, -170570642, -304257926, 384838318, 1301853571, -472575317, -2096166160, 872932967, -1378669788, 1335144781, -369148539, -885736967, -1811935563, 149328226, -1421003447, 311538186, 1956348216, -1365769595, -31766439, -2132925211, 1029568641, 637046469, -601862137, -1573470551, 815916176, 2050335435, -1089555714, -1421711902, -480591687, 325317125, 1812614504, 1332755845, -1033971972, -655911794, -1637243605, -600594122, 2025215381, -1315034565, 154297519, 2053584813, 1409535141, 535910440, -1934356819, -895408955, 1459135497, -604295372, 883658489, 703051130, 1914030205, -1753105422, -1714841549, -1961113770, 1893921502, 867246850, 844199983, -2025624521, 1674457409, 1144662859, -468434663, -152996295, 860208855, 1930563111, 1299410111, -2126368622, 1091932033, -1448695275, 1259662135, 748635992, -1836079659, 1227975603, 482667487, -89159812, -2075380707, 1690536291, 690076925, 969296919, -1166874454, 632349224, -1062484194, 1049070721, 370601979, -1513703034, 904680186, -2042648983, -1907617059, 2057813156, 1123068287, -1012199070, -1114398061, 925087610, 1475556409, 1875246208, 2064922467, 1573376728, 784287628, -1926896999, 1298177385, -909654206, -685966616, 262509527, 1900749289, 511092653, 369721886, 736217480, -1875147238, 1542350551, -672901527, -370125508, -72120016, -1592799810, -918670348, -521498789, 1115367753, 2046442295, -893958995, 1906215645, -467522783, -1170032566, -1300835752, 1130820842, 162830643, -1690938757, 1210214650, 981590209, -211648942, 1188530149, -280172162, -1995919837, 710932903, 181857257, -1697875030, -1345614003, 264465643, -379825717, -2076882578, 533200158, -577398117, -687179673, -1313061805, -342997765, 1180392947, 1328950321, 142178060, -367975685, 1352221793, -760017623, 1108050233, -611654777, 871794052, 238653167, 1063358622, 1283516056, -280337387, 154958994, -92913881, -172712666, 629480492, 768999156, 2003025250, -424053337, 590906940, -1879159956, -146182503, 1439644808, -1860335561, -1859965811, -1423950573, 1431458228, -1416222855, 1959538097, -1454392165, 2099726725, 1035870658, -1515465314, 9698996, -723565764, -992591845, 2082159340, 655766253, -1254207960, 203944385, -1959022703, -2009515897, -260196031, -626768058, -1539423197, 784706541, -1964155249, 993855571, -2083804049, 1215008054, 593156823, -13878337, 1263752775, 1073726159, 986390186, -1726133962, -1360419847, -1072041758, 447894757, -929769051, -571041888, 1033841466, 1583464646, 911587120, -57607189, 1459059972, -2094338290, 1603664502, 1934366767, 356865128, 1475176013, -172402483, 1113038729, -41796291, 272570950, 186801301, 1723843249, 1587180766, 360416223, -1808641695, 994893307, 802397304, -540255740, -1256861600, 1349533949, 33192664, -1443816258, 2027772712];
+            switch (type) {
+                case 'minimal':
+                    bmak.type = 'minimal',
+                        bmak.formInfo = '',
+                        bmak.updatet = lodash_1.default.random(1, 10);
+                    bmak.td = -999999;
+                    bmak.pe_cnt = 0;
+                    bmak.fmh = yield calculateFontHash();
+                    bmak.ssh = voicesHash();
+                    bmak.wv = fingerprint.webGl.vendor;
+                    bmak.wr = fingerprint.webGl.renderer;
+                    bmak.weh = eh;
+                    bmak.wl = el;
+                    bmak.s = lodash_1.default.random(1, 10);
+                    bmak.aj_type = 0;
+                    bmak.aj_indx = 0;
+                    bmak.getmr = '-1';
+                    bmak.nav_perm = '';
+                    bmak.fpValstr = '-1';
+                    bmak.p = 94;
+                    bmak.y = -1;
+                    break;
+                case 'nomouse':
+                    bmak.type = 'nomouse',
+                        bmak.updatet = add_random;
+                    bmak.td = lodash_1.default.random(40, 200);
+                    bmak.pe_cnt = 0;
+                    bmak.fmh = yield calculateFontHash();
+                    bmak.ssh = voicesHash();
+                    bmak.weh = webGlExtentionsHash();
+                    bmak.wv = fingerprint.webGl.vendor;
+                    bmak.wr = fingerprint.webGl.renderer;
+                    bmak.s = bmak.updatet + 1;
+                    bmak.aj_type = 9;
+                    bmak.aj_indx = 1;
+                    bmak.getmr = yield getmr();
+                    bmak.nav_perm = '01321144241322243122';
+                    bmak.fpValstr = data(bmak.ua_browser).replace(/"/g, "\"");
+                    bmak.p = ab(bmak.fpValstr);
+                    bmak.z = canvasArray[bmak.y].toString();
+                    bmak.tst = lodash_1.default.random(10, 70);
+                    break;
+                case 'mouse':
+                    bmak.type = 'mouse',
+                        bmak.genmouse = genMouseData(bmak);
+                    bmak.updatet = add_random;
+                    bmak.td = lodash_1.default.random(40, 200);
+                    bmak.pe_cnt = lodash_1.default.random(3, 7);
+                    bmak.ssh = voicesHash();
+                    bmak.weh = webGlExtentionsHash();
+                    bmak.wv = fingerprint.webGl.vendor;
+                    bmak.wr = fingerprint.webGl.renderer;
+                    bmak.s = bmak.updatet + 1;
+                    bmak.fmh = yield calculateFontHash();
+                    bmak.aj_type = 1;
+                    bmak.aj_indx = 2;
+                    bmak.getmr = yield getmr();
+                    bmak.nav_perm = '01321144241322243122';
+                    bmak.fpValstr = data(bmak.ua_browser).replace(/"/g, "\"");
+                    bmak.p = ab(bmak.fpValstr);
+                    bmak.z = canvasArray[bmak.y].toString();
+                    bmak.tst = lodash_1.default.random(10, 70);
+                    break;
+            }
+        });
+    }
+    function verify_abck(abck, site) {
+        abck = abck.toString();
+        writeToFile(`${abck}\n`);
+        cookie_counter++;
+        logger_1.default.purple(`Cookie #${cookie_counter}`);
+        return site.valid_check.every(i => !i.includes("!") && abck.includes(i.replace("!", "")) || i.includes("!") && !abck.includes(i.replace("!", ""))) ? {
+            success: true,
+            abck: abck
+        } : {
+            success: false,
+            abck: abck
+        };
+    }
+    /**
+     * ! {Browser Functions}
+     */
+    // DONE GIT ADDED CHECK IF NAVIGATOR IS BRAVE
+    function gd(ua_browser, userAgent, bmak) {
+        var screen_size = Object.values(fingerprint.screen), a = userAgent, t = "" + ab(a), e = bmak.start_ts / 2, n = screen_size[0], o = screen_size[1], m = screen_size[0], r = screen_size[1], i = screen_size[0], c = screen_size[1], b = screen_size[0];
+        bmak.z1 = parseInt(bmak.start_ts / (2016 * 2016));
+        var d = Math.random(), k = parseInt((1e3 * d) / 2), l = d + "";
+        return ((l = l.slice(0, 11) + k), get_browser(ua_browser, bmak), bc(ua_browser, bmak), bmisc(bmak), a + ",uaend," + bmak.xagg + "," + bmak.psub + "," + bmak.lang + "," + bmak.prod + "," + bmak.plen + "," + bmak.pen + "," + bmak.wen + "," + bmak.den + "," + bmak.z1 + "," + bmak.d3 + "," + n + "," + o + "," + m + "," + r + "," + i + "," + c + "," + b + "," + bd(ua_browser) + "," + t + "," + l + "," + e + "," + bmak.brv + ",loc:" + bmak.loc);
+    }
+    // using now from fingerprint
+    // function screenSize() {
+    // 	logger.white(browserData[dataNum].resolutions)
+    // 	try{
+    // 		JSON.parse(browserData[dataNum].resolutions)
+    // 		return JSON.parse(browserData[dataNum].resolutions);
+    // 	} catch(e){
+    // 		return lodash.sample([
+    // 			['1098', '686', '1098', '686', '1098', '583', '1098'],
+    // 			['1280', '680', '1280', '720', '1280', '578', '1280'],
+    // 			['1440', '776', '1440', '900', '1440', '660', '1440'],
+    // 			['1440', '826', '1440', '900', '1440', '746', '1440'],
+    // 			['1440', '860', '1440', '900', '1440', '757', '1440'],
+    // 			['1440', '831', '1440', '900', '1440', '763', '1440'],
+    // 			['1440', '851', '1440', '900', '1420', '770', '1420'],
+    // 			['1440', '786', '1440', '900', '1440', '789', '1440'],
+    // 			['1440', '900', '1440', '900', '920', '789', '1440'],
+    // 			['1440', '900', '1440', '900', '1440', '821', '1440'],
+    // 			['1536', '824', '1536', '864', '1536', '722', '1536'],
+    // 			['1680', '972', '1680', '1050', '1680', '939', '1680'],
+    // 			['1680', '1020', '1680', '1050', '1680', '917', '1680'],
+    // 			['1920', '1040', '1920', '1080', '1920', '937', '1920'],
+    // 			['1920', '1040', '1920', '1080', '1920', '969', '1920'],
+    // 			['1920', '1080', '1920', '1080', '1920', '1007', '1920'],
+    // 			['2560', '1400', '2560', '1440', '2560', '1327', '2576'],
+    // 			['1024', '1024', '1024', '1024', '1024', '1024', '1024'],
+    // 			['1680', '973', '1680', '1050', '1133', '862', '1680'],
+    // 			['1680', '973', '1680', '1050', '1680', '862', '1680'],
+    // 			['1024', '768', '1024', '768', '1256', '605', '1272'],
+    // 			['1360', '728', '1360', '768', '1360', '625', '1358'],
+    // 			['1440', '797', '1440', '900', '1440', '685', '1440']
+    // 		]);
+    // 	}
+    // }
+    function get_browser(ua_browser, bmak) {
+        bmak.psub = productSub(ua_browser),
+            bmak.lang = "en-US",
+            bmak.prod = "Gecko",
+            bmak.plen = pluginsLength(ua_browser);
+    }
+    function pluginsLength(browser) {
+        switch (browser) {
+            case "chrome":
+                return 3;
+            case "ie":
+                return 1;
+            case "opera":
+                return 1;
+            case "firefox":
+                return 0;
+            case "safari":
+                return 1;
+        }
+    }
+    function productSub(browser) {
+        switch (browser) {
+            case "chrome":
+                return 20030107;
+            case "ie":
+                return 20030107;
+            case "opera":
+                return 20030107;
+            case "firefox":
+                return 20100101;
+            case "safari":
+                return 20030107;
+        }
+    }
+    function touchEvent(browser) {
+        switch (browser) {
+            case "chrome":
+                return 1;
+            case "ie":
+                return 0;
+            case "opera":
+                return 1;
+            case "firefox":
+                return 1;
+            case "safari":
+                return 0;
+        }
+    }
+    function chrome(browser) {
+        switch (browser) {
+            case "chrome":
+                return 1;
+            default:
+                return 0;
+        }
+    }
+    function bc(ua_browser, bmak) {
+        var a = 1, t = 1, e = 0, n = 0, o = 1, m = 1, r = touchEvent(ua_browser), i = 0, c = 1, b = 1, d = chrome(ua_browser), k = 1, l = 0, s = 1;
+        bmak.xagg =
+            a +
+                (t << 1) +
+                (e << 2) +
+                (n << 3) +
+                (o << 4) +
+                (m << 5) +
+                (r << 6) +
+                (i << 7) +
+                (c << 8) +
+                (b << 9) +
+                (d << 10) +
+                (k << 11) +
+                (l << 12) +
+                (s << 13);
+    }
+    function bmisc(bmak) {
+        bmak.pen = 0,
+            bmak.wen = 0,
+            bmak.den = 0;
+    }
+    function bd(browser) {
+        switch (browser) {
+            case "chrome":
+                return [",cpen:0", "i1:0", "dm:0", "cwen:0", "non:1", "opc:0", "fc:0", "sc:0", "wrc:1", "isc:0", "vib:1", "bat:1", "x11:0", "x12:1"].join(",");
+            case "ie":
+                return [",cpen:0", "i1:1", "dm:1", "cwen:0", "non:1", "opc:0", "fc:0", "sc:0", "wrc:0", "isc:0", "vib:0", "bat:0", "x11:0", "x12:1"].join(",");
+            case "opera":
+                return [",cpen:0", "i1:0", "dm:0", "cwen:0", "non:1", "opc:1", "fc:0", "sc:0", "wrc:1", "isc:0", "vib:0", "bat:1", "x11:0", "x12:1"].join(",");
+            case "firefox":
+                return [",cpen:0", "i1:0", "dm:0", "cwen:0", "non:1", "opc:0", "fc:1", "sc:0", "wrc:1", "isc:1", "vib:1", "bat:0", "x11:0", "x12:1"].join(",");
+            case "safari":
+                return [",cpen:0", "i1:0", "dm:0", "cwen:0", "non:1", "opc:0", "fc:0", "sc:0", "wrc:1", "isc:0", "vib:0", "bat:0", "x11:0", "x12:1"].join(",");
+        }
+    }
+    function pluginInfo(browser) {
+        switch (browser) {
+            case "chrome":
+                return [",7,8"];
+            case "ie":
+                return [""];
+            case "opera":
+                return [""];
+            case "firefox":
+                return [",3"];
+            case "safari":
+                return [""];
+        }
+    }
+    function webrtcKey(browser) {
+        switch (browser) {
+            case "chrome":
+                return true;
+            case "ie":
+                return false;
+            case "opera":
+                return true;
+            case "firefox":
+                return true;
+            case "safari":
+                return true;
+        }
+    }
+    function data(ua_browser) {
+        // -36060876;-1849314799;
+        return [canvas(), canvas_2(), "dis", pluginInfo(ua_browser), true, true, true, ((new Date).getTimezoneOffset()), webrtcKey(ua_browser), 24, 24, true, false, "1"].filter(x => x !== null).join(";");
+    }
+    function sed() {
+        return [0, 0, 0, 0, 1, 0, 0].join(",");
+    }
+    function canvas() {
+        return data_1.browserData[dataNum].canvas1;
+        // return lodash.sample([-1151536724, -1152944628, -1259079336, -1618588580, -1752250632, -1752591854, -1880212897, -36060876, -434613739, -509993527, -52233038, -739578230, -746822318, 1112667908, 1454252292, 1544133244, 1637755981, 59688812, 73331404, 763748173]).toString();
+    }
+    function canvas_2() {
+        return data_1.browserData[dataNum].canvas2;
+        // return lodash.sample([-1849314799, 66351601, 1396487819]).toString();
+    }
+    function getmr() {
+        return __awaiter(this, void 0, void 0, function* () {
+            var mr;
+            yield win.webContents.executeJavaScript(`function x() {
 			try {
 				for (var a = "", t = 1e3, e = [Math.abs, Math.acos, Math.asin, Math.atanh, Math.cbrt, Math.exp, Math.random, Math.round, Math.sqrt, isFinite, isNaN, parseFloat, parseInt, JSON.parse], n = 0; n < e.length; n++) {
 					var o = [],
@@ -1211,13 +957,14 @@ app.on('ready', async () => {
 				console.error(a);
 			}
 		}
-		x();`).then((y) => { mr = y });
-		return mr;
-	}
-
-	async function getFontsHash() {
-		var ats;
-		await win.webContents.executeJavaScript(`function x() {
+		x();`).then((y) => { mr = y; });
+            return mr;
+        });
+    }
+    function getFontsHash() {
+        return __awaiter(this, void 0, void 0, function* () {
+            var ats;
+            yield win.webContents.executeJavaScript(`function x() {
 			try {
 				var t = ["Monospace", "Wingdings 2", "ITC Bodoni 72 Bold", "Menlo", "Gill Sans MT", "Lucida Sans", "Bodoni 72", "Serif", "Shree Devanagari 714", "Microsoft Tai Le", "Nimbus Roman No 9 L", "Candara", "Press Start 2P", "Waseem"],
         a = document.createElement("span");
@@ -1233,149 +980,140 @@ app.on('ready', async () => {
 				console.error(a);
 			}
 		}
-		x();`).then((e) => { ats = e });
-		return ats;
-	}
-
-	async function getXsrf() {
-		var xsrf;
-		await win.webContents.executeJavaScript(`function x() {
+		x();`).then((e) => { ats = e; });
+            return ats;
+        });
+    }
+    function getXsrf() {
+        return __awaiter(this, void 0, void 0, function* () {
+            var xsrf;
+            yield win.webContents.executeJavaScript(`function x() {
 			try {
 			
 			} catch (a) {
 				console.error(a);
 			}
 		}
-		x();`).then((e) => { xsrf = e });
-		return xsrf;
-	}
-
-	async function getforminfo() {
-		// var a = "",
-		// 	error_url = (site.error_page != null) ? site.error_page : `https://${site.host}/${randomstring.generate({length: 5,charset: 'alphabetic'})}`;
-		// // var params = {
-		// // 	method: 'GET',
-		// // 	url: error_url,
-		// 	// headers: {
-		// 	// 	...site.headers,
-		// 	// 	'user-agent': userAgent
-		// 	// },
-		// // 	proxy: proxy !== undefined ? `http://${proxy}` : null,
-		// // 	timeout: 2000,
-		// // 	html: true,
-		// // 	resolveWithFullResponse: true,
-		// // }
-		// var options = {
-		// 	'method': 'GET',
-		// 	'url': 'https://www.footlocker.com/', 
-		// 	'hostname': site.host,
-		// 	headers: {
-		// 		'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
-		// 		'user-agent': userAgent,
-		// 		'sec-fetch-site': 'none',
-		// 		'sec-fetch-mode': 'navigate',
-		// 		'accept-encoding': 'gzip, deflate, br',
-		// 		'accept-language': 'en-US,en;q=0.9'
-		// 	}
-		// };
-
-		// var req = await net.request(options, function (res) {
-		// 	var body = '';
-		
-		// 	res.on("data", function (chunk) {
-		// 		body += chunk;
-		// 	});
-		
-		// 	res.on("end", function (chunk) {
-		// 		console.log('end')
-		// 		temp(body);
-		// 	});
-		
-		// 	res.on("error", function (error) {
-		// 		console.log('err ' + error)
-		// 		temp(body)
-		// 	});
-		// });
-
-		// await req.end();
-		// var a = '';
-		// await win.webContents.executeJavaScript(`
-		// 	function temp(){
-		// 		var a = '';
-		// 		var size = document.getElementsByTagName("input").length;
-		// 		for (var t = "", n = -1, o = 0; o < size; o++) {
-		// 			var m = document.getElementsByTagName("input")[o],
-		// 				r = ab(m.getAttribute("name")),
-		// 				i = ab(m.getAttribute("id")),
-		// 				c = m.getAttribute("required"),
-		// 				b = null == c ? 0 : 1,
-		// 				d = m.getAttribute("type"),
-		// 				k = null == d ? -1 : get_type(d),
-		// 				s = m.getAttribute("autocomplete");
-		// 			null == s ? n = -1 : (s = s.replace(/\\\"/g, '').replace('/', '').toLowerCase(), n = "off" == s ? 0 : "on" == s ? 1 : 2);
-		// 			var l = m.defaultValue.replace(/\\\"/g, '').replace('/', ''),
-		// 				u = m.value.replace(/\\\"/g, '').replace('/', ''),
-		// 				_ = 0,
-		// 				f = 0;
-		// 			l && 0 != l.length && (f = 1), !u || 0 == u.length || f && u == l || (_ = 1), 
-		// 			2 != k && (a = a + k + "," + n + "," + _ + "," + b + "," + i + "," + r + "," + f + ";"), 
-		// 			t = t + _ + ";"
-		// 		}
-		// 		return a;
-		// 	}
-
-		// 	function ab(a) {
-		// 		if (null == a) return -1;
-		// 		for (var t = 0, e = 0; e < a.replace(/\\\"/g, '').replace('/', '').length; e++) {
-		// 			var n = a.replace(/\\\"/g, '').replace('/', '').charCodeAt(e);
-		// 			n < 128 && (t += n);
-		// 		}
-		
-		// 		return t;
-		// 	}
-
-		// 	function get_type(a) {
-		// 		return a = a.replace(/\\\"/g, '').toLowerCase(), "text" == a || "search" == a || "url" == a || "email" == a || "tel" == a || "number" == a ? 0 : "password" == a ? 1 : 2
-		// 	}
-
-		// 	temp();
-		// `).then((response) => {
-		// 	console.log(response)
-		// 	a = response;
-		// });
-		// return a;
-
-		// async function temp(doc) {
-		// 	// console.log(doc)
-		// 	const dom = new JSDOM(options, {runScripts: "dangerously"});
-		// 	var size = dom.window.document.getElementsByTagName("input").length;
-		// 	logger.green(`${size} inputs`);
-		// 	for (var t = "", n = -1, o = 0; o < size; o++) {
-		// 		var m = dom.window.document.getElementsByTagName("input")[o],
-		// 			r = ab(m.getAttribute("name")),
-		// 			i = ab(m.getAttribute("id")),
-		// 			c = m.getAttribute("required"),
-		// 			b = null == c ? 0 : 1,
-		// 			d = m.getAttribute("type"),
-		// 			k = null == d ? -1 : get_type(d),
-		// 			s = m.getAttribute("autocomplete");
-		// 		null == s ? n = -1 : (s = s.replace(/\\\"/g, '').replace('/', '').toLowerCase(), n = "off" == s ? 0 : "on" == s ? 1 : 2);
-		// 		var l = m.defaultValue.replace(/\\\"/g, '').replace('/', ''),
-		// 			u = m.value.replace(/\\\"/g, '').replace('/', ''),
-		// 			_ = 0,
-		// 			f = 0;
-		// 		l && 0 != l.length && (f = 1), !u || 0 == u.length || f && u == l || (_ = 1), 
-		// 		2 != k && (a = a + k + "," + n + "," + _ + "," + b + "," + i + "," + r + "," + f + ";"), 
-		// 		t = t + _ + ";"
-		// 	}
-		// }
-		// await cloudscraper(params).then(response => temp(response.body)).catch((e) => temp(e.message));
-		// return a;
-
-		/// 1.69 ZALANDO
-		// AB IS GIT
-		var a = '';  // TODO: check if fail
-		await win.webContents.executeJavaScript(`
+		x();`).then((e) => { xsrf = e; });
+            return xsrf;
+        });
+    }
+    function getforminfo() {
+        return __awaiter(this, void 0, void 0, function* () {
+            // var a = "",
+            // 	error_url = (site.error_page != null) ? site.error_page : `https://${site.host}/${randomstring.generate({length: 5,charset: 'alphabetic'})}`;
+            // // var params = {
+            // // 	method: 'GET',
+            // // 	url: error_url,
+            // 	// headers: {
+            // 	// 	...site.headers,
+            // 	// 	'user-agent': userAgent
+            // 	// },
+            // // 	proxy: proxy !== undefined ? `http://${proxy}` : null,
+            // // 	timeout: 2000,
+            // // 	html: true,
+            // // 	resolveWithFullResponse: true,
+            // // }
+            // var options = {
+            // 	'method': 'GET',
+            // 	'url': 'https://www.footlocker.com/', 
+            // 	'hostname': site.host,
+            // 	headers: {
+            // 		'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.9',
+            // 		'user-agent': userAgent,
+            // 		'sec-fetch-site': 'none',
+            // 		'sec-fetch-mode': 'navigate',
+            // 		'accept-encoding': 'gzip, deflate, br',
+            // 		'accept-language': 'en-US,en;q=0.9'
+            // 	}
+            // };
+            // var req = await net.request(options, function (res) {
+            // 	var body = '';
+            // 	res.on("data", function (chunk) {
+            // 		body += chunk;
+            // 	});
+            // 	res.on("end", function (chunk) {
+            // 		console.log('end')
+            // 		temp(body);
+            // 	});
+            // 	res.on("error", function (error) {
+            // 		console.log('err ' + error)
+            // 		temp(body)
+            // 	});
+            // });
+            // await req.end();
+            // var a = '';
+            // await win.webContents.executeJavaScript(`
+            // 	function temp(){
+            // 		var a = '';
+            // 		var size = document.getElementsByTagName("input").length;
+            // 		for (var t = "", n = -1, o = 0; o < size; o++) {
+            // 			var m = document.getElementsByTagName("input")[o],
+            // 				r = ab(m.getAttribute("name")),
+            // 				i = ab(m.getAttribute("id")),
+            // 				c = m.getAttribute("required"),
+            // 				b = null == c ? 0 : 1,
+            // 				d = m.getAttribute("type"),
+            // 				k = null == d ? -1 : get_type(d),
+            // 				s = m.getAttribute("autocomplete");
+            // 			null == s ? n = -1 : (s = s.replace(/\\\"/g, '').replace('/', '').toLowerCase(), n = "off" == s ? 0 : "on" == s ? 1 : 2);
+            // 			var l = m.defaultValue.replace(/\\\"/g, '').replace('/', ''),
+            // 				u = m.value.replace(/\\\"/g, '').replace('/', ''),
+            // 				_ = 0,
+            // 				f = 0;
+            // 			l && 0 != l.length && (f = 1), !u || 0 == u.length || f && u == l || (_ = 1), 
+            // 			2 != k && (a = a + k + "," + n + "," + _ + "," + b + "," + i + "," + r + "," + f + ";"), 
+            // 			t = t + _ + ";"
+            // 		}
+            // 		return a;
+            // 	}
+            // 	function ab(a) {
+            // 		if (null == a) return -1;
+            // 		for (var t = 0, e = 0; e < a.replace(/\\\"/g, '').replace('/', '').length; e++) {
+            // 			var n = a.replace(/\\\"/g, '').replace('/', '').charCodeAt(e);
+            // 			n < 128 && (t += n);
+            // 		}
+            // 		return t;
+            // 	}
+            // 	function get_type(a) {
+            // 		return a = a.replace(/\\\"/g, '').toLowerCase(), "text" == a || "search" == a || "url" == a || "email" == a || "tel" == a || "number" == a ? 0 : "password" == a ? 1 : 2
+            // 	}
+            // 	temp();
+            // `).then((response) => {
+            // 	console.log(response)
+            // 	a = response;
+            // });
+            // return a;
+            // async function temp(doc) {
+            // 	// console.log(doc)
+            // 	const dom = new JSDOM(options, {runScripts: "dangerously"});
+            // 	var size = dom.window.document.getElementsByTagName("input").length;
+            // 	logger.green(`${size} inputs`);
+            // 	for (var t = "", n = -1, o = 0; o < size; o++) {
+            // 		var m = dom.window.document.getElementsByTagName("input")[o],
+            // 			r = ab(m.getAttribute("name")),
+            // 			i = ab(m.getAttribute("id")),
+            // 			c = m.getAttribute("required"),
+            // 			b = null == c ? 0 : 1,
+            // 			d = m.getAttribute("type"),
+            // 			k = null == d ? -1 : get_type(d),
+            // 			s = m.getAttribute("autocomplete");
+            // 		null == s ? n = -1 : (s = s.replace(/\\\"/g, '').replace('/', '').toLowerCase(), n = "off" == s ? 0 : "on" == s ? 1 : 2);
+            // 		var l = m.defaultValue.replace(/\\\"/g, '').replace('/', ''),
+            // 			u = m.value.replace(/\\\"/g, '').replace('/', ''),
+            // 			_ = 0,
+            // 			f = 0;
+            // 		l && 0 != l.length && (f = 1), !u || 0 == u.length || f && u == l || (_ = 1), 
+            // 		2 != k && (a = a + k + "," + n + "," + _ + "," + b + "," + i + "," + r + "," + f + ";"), 
+            // 		t = t + _ + ";"
+            // 	}
+            // }
+            // await cloudscraper(params).then(response => temp(response.body)).catch((e) => temp(e.message));
+            // return a;
+            /// 1.69 ZALANDO
+            // AB IS GIT
+            var a = ''; // TODO: check if fail
+            yield win.webContents.executeJavaScript(`
 			function temp(){
 				var a = '';
 				var size = document.getElementsByTagName("input").length;
@@ -1416,457 +1154,384 @@ app.on('ready', async () => {
 
 			temp();
 		`).then((response) => {
-			console.log(response)
-			a = response;
-		});
-		return a;
-	}
-
-	function get_type(a) {
-		return a = a.replace(/\\\"/g, '').toLowerCase(), "text" == a || "search" == a || "url" == a || "email" == a || "tel" == a || "number" == a ? 0 : "password" == a ? 1 : 2
-	}
-
-	/**
-	 * ! {Mouse Event Functions}
-	 */
-
-	function genMouseData(bmak) {
-		var timeStamp = Math.round(get_cf_date() - (new Date() - 20)) + lodash.random(8000, 12000),
-			mouseString = '',
-			loop_amount = 100,
-			generated = ghost_cursor({ x: lodash.random(100, 200), y: lodash.random(70, 230) }, { x: lodash.random(500, 800), y: lodash.random(470, 750) }),
-			path = (generated.length > 100) ? generated : ghost_cursor({ x: lodash.random(100, 200), y: lodash.random(70, 230) }, { x: lodash.random(500, 800), y: lodash.random(470, 750) });
-			console.log(path.length)
-			console.log(path)
-		for (var i = 0; i < path.length; i++) {
-			let point = path[i];
-				x = Math.round(point.x),
-				y = Math.round(point.y);
-			timeStamp = timeStamp + lodash.random(0, 2);
-			if (i == path.length) {
-				bmak.me_cnt = lodash.random(200, 1400),
-				mouseString = mouseString + bmak.me_cnt + ',3,' + timeStamp + ',' + x + ',' + y + ',-1;';
-			} else {
-				bmak.me_vel = bmak.me_vel + i + 1 + timeStamp + x + y,
-				bmak.ta += timeStamp,
-				mouseString = mouseString + i + ',1,' + timeStamp + ',' + x + ',' + y + ";";
-			}
-			mouseString = mouseString
-		}
-		console.log(mouseString)
-		return mouseString;
-	}
-
-	/**
-	 * *This function will create the correct values for mouse movements required for challenge cookies
-	 * @returns {bmak}
-	 * *bmak.me_vel is added to cf_date and mouse event values. This should be within the 1000 range.
-	 * ! The values {t, i, n, o} are subject to change!!!! This can be found at cma: function(){}
-	 */
-
-	function genChallengeMouseEvent(bmak) {
-		var timing = lodash.random(900, 1400),
-		t = 2,
-		i = timing,
-		n = -1,
-		o = -1
-		bmak.genmouse = `${bmak.me_cnt},${t},${i},${n},${o},-1,it0;`;
-		console.log(bmak.genmouse)
-		bmak.vcact = `2,${lodash.random(3000, 5000)};`;
-		bmak.me_vel = i + t + n + o + bmak.me_cnt;
-		console.log(bmak.me_vel)
-		bmak.me_cnt++;
-		bmak.ta = timing;
-		bmak.updatet = timing + lodash.random(3000,5000);
-		bmak.s = bmak.updatet + 1;
-		return bmak;
-	}
-
-	function cdoa(bmak) {
-		try {
-			var t = get_cf_date() - bmak.start_ts + 20;
-			var e = getFloatVal(lodash.random(0, 360));
-			var n = getFloatVal(lodash.random(-180, 180));
-			var o = getFloatVal(lodash.random(-90, 90));
-			var m = bmak.doe_cnt + "," + t + "," + "-1" + "," + "-1" + "," + "-1";
-			bmak.doact = m + ";";
-			bmak.doe_vel = t;
-			return bmak.doact;
-		} catch (a) { }
-	};
-
-	/**
-	 * @returns - bmak.dmact
-	 */
-	function cdma(bmak) {
-		try {
-			var t = (get_cf_date() - bmak.start_ts) + 20;
-			var m = "0," + t + ",-1,-1,-1,-1,-1,-1,-1,-1,-1";
-			bmak.dmact = m + ";";
-			bmak.dme_vel = t;
-			return bmak.dmact;
-		} catch (a) { }
-	}
-
-	// function dmact(bmak){
-	// 	return '0,' + (get_cf_date() - bmak.start_ts) + ',-1,-1,-1,-1,-1,-1,-1,-1,-1;';
-	// }
-	
-
-	/**
-	 * ! {Challenge Cookie Functions}
-	 */
-
-	async function mn_poll(abck, bmak) {
-		if (0 == bmak.mn_state) {
-			var a = await get_mn_params_from_abck(abck),
-				t = await mn_get_new_challenge_params(a, bmak);
-			null != t && (await mn_update_challenge_details(t, bmak));
-			return await mn_w(bmak)
-		}
-	}
-
-	function get_mn_params_from_abck(abck) {
-		var a = [
-			[]
-		];
-		try {
-			var t = abck;
-			if (!1 !== t) {
-				var e = decodeURIComponent(t).split("~");
-				if (e.length >= 5) {
-					var n = e[0],
-						o = e[4],
-						m = o.split("\|\|");
-					if (m.length > 0)
-						for (var r = 0; r < m.length; r++) {
-							var i = m[r],
-								c = i.split("-");
-							if (c.length >= 5) {
-								var b = pi(c[0]),
-									d = c[1],
-									k = pi(c[2]),
-									s = pi(c[3]),
-									l = pi(c[4]),
-									u = 1;
-								c.length >= 6 && (u = pi(c[5]));
-								var _ = [b, n, d, k, s, l, u];
-								2 == u ? a.splice(0, 0, _) : a.push(_)
-							}
-						}
-				}
-			}
-		} catch (a) {}
-		return a	
-	}
-
-	async function mn_get_current_challenges(abck) {
-		var a = await get_mn_params_from_abck(abck),
-			t = [];
-		if (null != a)
-			for (var e = 0; e < a.length; e++) {
-				var n = a[e];
-				if (n.length > 0) {
-					var o = n[1] + n[2],
-						m = n[6];
-					t[m] = o
-				}
-			}
-		return t
-	}
-
-	function mn_update_challenge_details(a, bmak) {
-		bmak.mn_sen = a[0], bmak.mn_abck = a[1], bmak.mn_psn = a[2], bmak.mn_cd = a[3], bmak.mn_tout = a[4], bmak.mn_stout = a[5], bmak.mn_ct = a[6], bmak.mn_ts = bmak.start_ts, bmak.mn_cc = bmak.mn_abck + bmak.start_ts + bmak.mn_psn;
-	}
-
-	function mn_get_new_challenge_params(a, bmak) {
-		var t = null,
-			e = null,
-			n = null;
-		if (null != a)
-			for (var o = 0; o < a.length; o++) {
-				var m = a[o];
-				if (m.length > 0) {
-					for (var r = m[0], i = bmak.mn_abck + bmak.start_ts + m[2], c = m[3], b = m[6], d = 0; d < bmak.mn_lcl && (1 == r && bmak.mn_lc[d] != i && bmak.mn_ld[d] != c); d++);
-					d == bmak.mn_lcl && (t = o, 2 == b && (e = o), 3 == b && (n = o))
-				}
-			}
-		return null != n && bmak.pstate ? a[n] : null == e || bmak.pstate ? null == t || bmak.pstate ? null : a[t] : a[e]
-	}
-
-	async function mn_w(bmak) {
-		//Called when you get challenge cookie
-		try {
-			for (var a = 0, t = 0, e = 0, n = "", o = get_cf_date(), m = bmak.mn_cd + bmak.mn_mc_indx; 0 == a;) {
-				n = Math.random().toString(16);
-				var r = bmak.mn_cc + m.toString() + n,
-					i = mn_h(r);
-				if (0 == bdm(i, m)) a = 1, e = get_cf_date() - o, bmak.mn_al.push(n), bmak.mn_tcl.push(e), bmak.mn_il.push(t), 0 == bmak.mn_mc_indx && (bmak.mn_lg.push(bmak.mn_abck), bmak.mn_lg.push(bmak.mn_ts), bmak.mn_lg.push(bmak.mn_psn), bmak.mn_lg.push(bmak.mn_cc), bmak.mn_lg.push(bmak.mn_cd.toString()), bmak.mn_lg.push(m.toString()), bmak.mn_lg.push(n), bmak.mn_lg.push(r), bmak.mn_lg.push(i));
-				else if ((t += 1) % 1e3 == 0 && (e = get_cf_date() - o) > bmak.mn_stout) return setTimeout(mn_w(bmak), 1e3 + bmak.mn_stout);
-			}
-			bmak.mn_mc_indx += 1, bmak.mn_mc_indx < bmak.mn_mc_lmt ? await mn_w(bmak) : (bmak.mn_mc_indx = 0, bmak.mn_lc[bmak.mn_lcl] = bmak.mn_cc, bmak.mn_ld[bmak.mn_lcl] = bmak.mn_cd, bmak.mn_lcl = bmak.mn_lcl + 1, bmak.mn_state = 0, bmak.mn_r[bmak.mn_abck + bmak.mn_psn] = await mn_pr(bmak), bmak.aj_type = 8, bmak.aj_indx++);
-			return bmak;
-		} catch (a) {
-			logger.red('exception on line ' + a.stack)
-		}
-	}
-
-	function mn_pr(bmak) {
-		return bmak.mn_al.join(",") + ";" + bmak.mn_tcl.join(",") + ";" + bmak.mn_il.join(",") + ";" + bmak.mn_lg.join(",") + ";";
-	}
-
-	/**
-	* ! {Math Functions}
-	*/
-	function x2() {
-		var t = ff,
-			a = t(98) + t(109) + t(97) + t(107),
-			e = t(103) + t(101) + t(116) + t(95) + t(99) + t(102) + t(95) + t(100) + t(97) + t(116) + t(101),
-			n = window[a][e],
-			o = 0;
-		return "function" == typeof n && (o = n()), o;
-	}
-
-	function to(bmak) {
-		var a = get_cf_date() % 1e7;
-		bmak.d3 = a;
-		for (var t = a, e = 0; e < 5; e++) {
-			var n = parseInt(a / Math.pow(10, e)) % 10,
-				o = n + 1,
-				m = 'return a' + cc(n) + o + ';';
-			t = new Function('a', m)(t)
-		}
-		return t
-	}
-
-	function toNew() {
-		var t = x2() % 1e7;
-		bmak.d3 = t;
-
-		for (var a = t, e = bmak.pi(bmak.ff(51)), n = 0; n < 5; n++) {
-			var o = bmak.pi(t / Math.pow(10, n)) % 10,
-				m = o + 1;
-			op = cc(o), a = op(a, m);
-		}
-
-		return a * e;
-	}
-
-	function cc(a) {
-		var t = a % 4;
-		2 == t && (t = 3);
-		var e = 42 + t;
-		return String.fromCharCode(e)
-	}
-
-	function ff(t) {
-		return String.fromCharCode(t);
-	}
-	function cal_dis(t) {
-		var a = t[0] - t[1],
-        e = t[2] - t[3],
-        n = t[4] - t[5],
-        o = Math.sqrt(a * a + e * e + n * n);
-      return Math.floor(o);
-	}
-	function jrs(t) {
-		for (var a = Math.floor(1e5 * Math.random() + 1e4), e = String(t * a), n = 0, o = [], m = e.length >= 18; o.length < 6;) o.push(parseInt(e.slice(n, n + 2))), n = m ? n + 3 : n + 2;
-
-      return [a, cal_dis(o)];
-	}
-	//Used for determining how long challenge cookie verification loops for
-	function mn_h(a) {
-		var t = 1732584193,
-			e = 4023233417,
-			n = 2562383102,
-			o = 271733878,
-			m = 3285377520,
-			r = encode_utf8(a),
-			i = 8 * r.length;
-		r += String.fromCharCode(128);
-		for (var c = r.length / 4 + 2, b = Math.ceil(c / 16), d = new Array(b), k = 0; k < b; k++) {
-			d[k] = new Array(16);
-			for (var s = 0; s < 16; s++) d[k][s] = r.charCodeAt(64 * k + 4 * s) << 24 | r.charCodeAt(64 * k + 4 * s + 1) << 16 | r.charCodeAt(64 * k + 4 * s + 2) << 8 | r.charCodeAt(64 * k + 4 * s + 3) << 0
-		}
-		var l = i / Math.pow(2, 32);
-		d[b - 1][14] = Math.floor(l), d[b - 1][15] = 4294967295 & i;
-		for (var u = 0; u < b; u++) {
-			for (var _, f, p, v = new Array(80), h = t, g = e, w = n, y = o, C = m, k = 0; k < 80; k++) v[k] = k < 16 ? d[u][k] : rotate_left(v[k - 3] ^ v[k - 8] ^ v[k - 14] ^ v[k - 16], 1), k < 20 ? (_ = g & w | ~g & y, f = 1518500249) : k < 40 ? (_ = g ^ w ^ y, f = 1859775393) : k < 60 ? (_ = g & w | g & y | w & y, f = 2400959708) : (_ = g ^ w ^ y, f = 3395469782), p = rotate_left(h, 5) + _ + C + f + v[k], C = y, y = w, w = rotate_left(g, 30), g = h, h = p;
-			t += h, e += g, n += w, o += y, m += C
-		}
-		return [t >> 24 & 255, t >> 16 & 255, t >> 8 & 255, 255 & t, e >> 24 & 255, e >> 16 & 255, e >> 8 & 255, 255 & e, n >> 24 & 255, n >> 16 & 255, n >> 8 & 255, 255 & n, o >> 24 & 255, o >> 16 & 255, o >> 8 & 255, 255 & o, m >> 24 & 255, m >> 16 & 255, m >> 8 & 255, 255 & m]
-	}
-
-	function getFloatVal(a) {
-		try {
-			if (-1 != chknull(a) && !isNaN(a)) {
-				var t = parseFloat(a);
-				if (!isNaN(t)) return t.toFixed(2)
-			}
-		} catch (a) { }
-		return -1
-	}
-
-	/**
-	 * ! {Support Functions}
-	 */
-
-	function encode_utf8(a) {
-		return unescape(encodeURIComponent(a))
-	}
-
-	function rotate_left(a, t) {
-		return a << t | a >>> 32 - t;
-	}
-
-	function pi(a) {
-		return parseInt(a);
-	}
-
-	function bdm(a, t) {
-		for (var e = 0, n = 0; n < a.length; ++n) e = (e << 8 | a[n]) >>> 0, e %= t;
-		return e;
-	}
-
-	function chknull(a) {
-		return null == a ? -1 : a
-	};
-
-	function od(a, t) {
-		try {
-			(a = a.toString()), (t = t.toString());
-			var e = [];
-			var n = t.length;
-			if (n > 0) {
-				for (var o = 0; o < a.length; o++) {
-					var m = a.charCodeAt(o);
-					var r = a.charAt(o);
-					var i = t.charCodeAt(o % n);
-					(m = rir(m, 47, 57, i)),
-						m != a.charCodeAt(o) && (r = String.fromCharCode(m)),
-						e.push(r);
-				}
-				if (e.length > 0) return e.join("");
-			}
-		} catch (a) { }
-		return a;
-	}
-
-	function ab(a) {
-		if (null == a) return -1;
-		for (var t = 0, e = 0; e < a.length; e++) {
-			var n = a.charCodeAt(e);
-			n < 128 && (t += n);
-		}
-
-		return t;
-	}
-	// font functions
-
-	function ats(t) {
-		for (var a = "", e = 0; e < t.length; e++) a += 2 == t[e].toString(16).length ? t[e].toString(16) : "0" + t[e].toString(16);
-
-      return a;
-	}
-	function rotate_right(t, a) {
-		return t >>> a | t << 32 - a;
-	}
-
-	function mn_s(t) {
-		var a = [1116352408, 1899447441, 3049323471, 3921009573, 961987163, 1508970993, 2453635748, 2870763221,
-			 3624381080, 310598401, 607225278, 1426881987, 1925078388, 2162078206, 2614888103, 3248222580,
-			  3835390401, 4022224774, 264347078, 604807628, 770255983, 1249150122, 1555081692, 1996064986,
-				 2554220882, 2821834349, 2952996808, 3210313671, 3336571891, 3584528711, 113926993, 338241895,
-				  666307205, 773529912, 1294757372, 1396182291, 1695183700, 1986661051, 2177026350, 2456956037,
-					 2730485921, 2820302411, 3259730800, 3345764771, 3516065817, 3600352804, 4094571909, 275423344,
-					  430227734, 506948616, 659060556, 883997877, 958139571, 1322822218, 1537002063, 1747873779, 1955562222,
-						 2024104815, 2227730452, 2361852424, 2428436474, 2756734187, 3204031479, 3329325298],
-			e = 1779033703,
-			n = 3144134277,
-			o = 1013904242,
-			m = 2773480762,
-			r = 1359893119,
-			i = 2600822924,
-			c = 528734635,
-			b = 1541459225,
-			d = encode_utf8(t),
-			s = 8 * d.length;
-		d += String.fromCharCode(128);
-
-		for (var k = d.length / 4 + 2, l = Math.ceil(k / 16), u = new Array(l), _ = 0; _ < l; _++) {
-			u[_] = new Array(16);
-
-			for (var f = 0; f < 16; f++) u[_][f] = d.charCodeAt(64 * _ + 4 * f) << 24 | d.charCodeAt(64 * _ + 4 * f + 1) << 16 | d.charCodeAt(64 * _ + 4 * f + 2) << 8 | d.charCodeAt(64 * _ + 4 * f + 3) << 0;
-		}
-
-		var p = s / Math.pow(2, 32);
-		u[l - 1][14] = Math.floor(p), u[l - 1][15] = s;
-
-		for (var h = 0; h < l; h++) {
-			for (var v, g = new Array(64), w = e, y = n, E = o, S = m, C = r, v = i, M = c, x = b, _ = 0; _ < 64; _++) {
-				var j, A, L, P, T, F;
-				_ < 16 ? g[_] = u[h][_] : (j = rotate_right(g[_ - 15], 7) ^ rotate_right(g[_ - 15], 18) ^ g[_ - 15] >>> 3, A = rotate_right(g[_ - 2], 17) ^ rotate_right(g[_ - 2], 19) ^ g[_ - 2] >>> 10, g[_] = g[_ - 16] + j + g[_ - 7] + A), A = rotate_right(C, 6) ^ rotate_right(C, 11) ^ rotate_right(C, 25), L = C & v ^ ~C & M, P = x + A + L + a[_] + g[_], j = rotate_right(w, 2) ^ rotate_right(w, 13) ^ rotate_right(w, 22), T = w & y ^ w & E ^ y & E, F = j + T, x = M, M = v, v = C, C = S + P >>> 0, S = E, E = y, y = w, w = P + F >>> 0;
-			}
-
-			e += w, n += y, o += E, m += S, r += C, i += v, c += M, b += x;
-		}
-
-		return [e >> 24 & 255, e >> 16 & 255, e >> 8 & 255, 255 & e, n >> 24 & 255, n >> 16 & 255, n >> 8 & 255, 255 & n, o >> 24 & 255, o >> 16 & 255, o >> 8 & 255, 255 & o, m >> 24 & 255, m >> 16 & 255, m >> 8 & 255, 255 & m, r >> 24 & 255, r >> 16 & 255, r >> 8 & 255, 255 & r, i >> 24 & 255, i >> 16 & 255, i >> 8 & 255, 255 & i, c >> 24 & 255, c >> 16 & 255, c >> 8 & 255, 255 & c, b >> 24 & 255, b >> 16 & 255, b >> 8 & 255, 255 & b];
-	}
-
-	async function calculateFontHash() {
-		const tt = await getFontsHash();
-		return ats(mn_s(tt));
-	}
-
-  function getMeRandomElements(arrCopy, neededElements) {
-		var sourceArray = [...arrCopy];
-    var result = [];
-    for (var i = 0; i < neededElements; i++) {
-			  var randomIndex = Math.floor(Math.random()*sourceArray.length);
-        result.push(sourceArray[randomIndex]);
+                console.log(response);
+                a = response;
+            });
+            return a;
+        });
     }
-    return result;
-  }
-	function getRandom(arrCopy, n) {
-		var arr = [...arrCopy];
-    var result = new Array(n),
-        len = arr.length,
-        taken = new Array(len);
-    if (n > len)
-        throw new RangeError("getRandom: more elements taken than available");
-    while (n--) {
-        var x = Math.floor(Math.random() * len);
-        result[n] = arr[x in taken ? taken[x] : x];
-        taken[x] = --len in taken ? taken[len] : len;
+    function get_type(a) {
+        return a = a.replace(/\\\"/g, '').toLowerCase(), "text" == a || "search" == a || "url" == a || "email" == a || "tel" == a || "number" == a ? 0 : "password" == a ? 1 : 2;
     }
-    return result;
-}
-	// voices func
-	function voicesHash() {
-		var randomVoicesArray = getRandom(voices, lodash.random(4, voices.length));
-		var v = randomVoicesArray.join('');
-		return ats(mn_s(v));
-	}
-	function webGlExtentionsHash() {
-		var ext = getRandom(webglExt, lodash.random(30, webglExt.length)).sort()
-		var extentions = JSON.stringify(ext);
-		return [ats(mn_s(extentions)), ext.length];
-	}
-
-	function sd_debug(t) {
-		if (!bmak.js_post) {
-			var a = t;
-			"string" == typeof _sd_trace ? _sd_trace += a : _sd_trace = a;
-		}
-	}
-	function writeToFile(abck){
-		fs.appendFile('footpatrol_abck.txt', abck, (e) => {
-			if (e) throw e.message;
-		});
-	}
-});
-
+    /**
+     * ! {Mouse Event Functions}
+     */
+    function genMouseData(bmak) {
+        var timeStamp = Math.round(get_cf_date() - (new Date() - 20)) + lodash_1.default.random(8000, 12000), mouseString = '', loop_amount = 100, generated = (0, ghost_cursor_1.path)({ x: lodash_1.default.random(100, 200), y: lodash_1.default.random(70, 230) }, { x: lodash_1.default.random(500, 800), y: lodash_1.default.random(470, 750) }), path = (generated.length > 100) ? generated : (0, ghost_cursor_1.path)({ x: lodash_1.default.random(100, 200), y: lodash_1.default.random(70, 230) }, { x: lodash_1.default.random(500, 800), y: lodash_1.default.random(470, 750) });
+        for (var i = 0; i < path.length; i++) {
+            let point = path[i];
+            x = Math.round(point.x),
+                y = Math.round(point.y);
+            timeStamp = timeStamp + lodash_1.default.random(0, 2);
+            if (i == path.length) {
+                bmak.me_cnt = lodash_1.default.random(200, 1400),
+                    mouseString = mouseString + bmak.me_cnt + ',3,' + timeStamp + ',' + x + ',' + y + ',-1;';
+            }
+            else {
+                bmak.me_vel = bmak.me_vel + i + 1 + timeStamp + x + y,
+                    bmak.ta += timeStamp,
+                    mouseString = mouseString + i + ',1,' + timeStamp + ',' + x + ',' + y + ";";
+            }
+            mouseString = mouseString;
+        }
+        return mouseString;
+    }
+    /**
+     * *This function will create the correct values for mouse movements required for challenge cookies
+     * @returns {bmak}
+     * *bmak.me_vel is added to cf_date and mouse event values. This should be within the 1000 range.
+     * ! The values {t, i, n, o} are subject to change!!!! This can be found at cma: function(){}
+     */
+    function genChallengeMouseEvent(bmak) {
+        var timing = lodash_1.default.random(900, 1400), t = 2, i = timing, n = -1, o = -1;
+        bmak.genmouse = `${bmak.me_cnt},${t},${i},${n},${o},-1,it0;`;
+        bmak.vcact = `2,${lodash_1.default.random(3000, 5000)};`;
+        bmak.me_vel = i + t + n + o + bmak.me_cnt;
+        bmak.me_cnt++;
+        bmak.ta = timing;
+        bmak.updatet = timing + lodash_1.default.random(3000, 5000);
+        bmak.s = bmak.updatet + 1;
+        return bmak;
+    }
+    function cdoa(bmak) {
+        try {
+            var t = get_cf_date() - bmak.start_ts + 20;
+            var e = getFloatVal(lodash_1.default.random(0, 360));
+            var n = getFloatVal(lodash_1.default.random(-180, 180));
+            var o = getFloatVal(lodash_1.default.random(-90, 90));
+            var m = bmak.doe_cnt + "," + t + "," + "-1" + "," + "-1" + "," + "-1";
+            bmak.doact = m + ";";
+            bmak.doe_vel = t;
+            return bmak.doact;
+        }
+        catch (a) { }
+    }
+    ;
+    /**
+     * @returns - bmak.dmact
+     */
+    function cdma(bmak) {
+        try {
+            var t = (get_cf_date() - bmak.start_ts) + 20;
+            var m = "0," + t + ",-1,-1,-1,-1,-1,-1,-1,-1,-1";
+            bmak.dmact = m + ";";
+            bmak.dme_vel = t;
+            return bmak.dmact;
+        }
+        catch (a) { }
+    }
+    // function dmact(bmak){
+    // 	return '0,' + (get_cf_date() - bmak.start_ts) + ',-1,-1,-1,-1,-1,-1,-1,-1,-1;';
+    // }
+    /**
+     * ! {Challenge Cookie Functions}
+     */
+    function mn_poll(abck, bmak) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (0 == bmak.mn_state) {
+                var a = yield get_mn_params_from_abck(abck), t = yield mn_get_new_challenge_params(a, bmak);
+                null != t && (yield mn_update_challenge_details(t, bmak));
+                return yield mn_w(bmak);
+            }
+        });
+    }
+    function get_mn_params_from_abck(abck) {
+        var a = [
+            []
+        ];
+        try {
+            var t = abck;
+            if (!1 !== t) {
+                var e = decodeURIComponent(t).split("~");
+                if (e.length >= 5) {
+                    var n = e[0], o = e[4], m = o.split("\|\|");
+                    if (m.length > 0)
+                        for (var r = 0; r < m.length; r++) {
+                            var i = m[r], c = i.split("-");
+                            if (c.length >= 5) {
+                                var b = pi(c[0]), d = c[1], k = pi(c[2]), s = pi(c[3]), l = pi(c[4]), u = 1;
+                                c.length >= 6 && (u = pi(c[5]));
+                                var _ = [b, n, d, k, s, l, u];
+                                2 == u ? a.splice(0, 0, _) : a.push(_);
+                            }
+                        }
+                }
+            }
+        }
+        catch (a) { }
+        return a;
+    }
+    function mn_get_current_challenges(abck) {
+        return __awaiter(this, void 0, void 0, function* () {
+            var a = yield get_mn_params_from_abck(abck), t = [];
+            if (null != a)
+                for (var e = 0; e < a.length; e++) {
+                    var n = a[e];
+                    if (n.length > 0) {
+                        var o = n[1] + n[2], m = n[6];
+                        t[m] = o;
+                    }
+                }
+            return t;
+        });
+    }
+    function mn_update_challenge_details(a, bmak) {
+        bmak.mn_sen = a[0], bmak.mn_abck = a[1], bmak.mn_psn = a[2], bmak.mn_cd = a[3], bmak.mn_tout = a[4], bmak.mn_stout = a[5], bmak.mn_ct = a[6], bmak.mn_ts = bmak.start_ts, bmak.mn_cc = bmak.mn_abck + bmak.start_ts + bmak.mn_psn;
+    }
+    function mn_get_new_challenge_params(a, bmak) {
+        var t = null, e = null, n = null;
+        if (null != a)
+            for (var o = 0; o < a.length; o++) {
+                var m = a[o];
+                if (m.length > 0) {
+                    for (var r = m[0], i = bmak.mn_abck + bmak.start_ts + m[2], c = m[3], b = m[6], d = 0; d < bmak.mn_lcl && (1 == r && bmak.mn_lc[d] != i && bmak.mn_ld[d] != c); d++)
+                        ;
+                    d == bmak.mn_lcl && (t = o, 2 == b && (e = o), 3 == b && (n = o));
+                }
+            }
+        return null != n && bmak.pstate ? a[n] : null == e || bmak.pstate ? null == t || bmak.pstate ? null : a[t] : a[e];
+    }
+    function mn_w(bmak) {
+        return __awaiter(this, void 0, void 0, function* () {
+            //Called when you get challenge cookie
+            try {
+                for (var a = 0, t = 0, e = 0, n = "", o = get_cf_date(), m = bmak.mn_cd + bmak.mn_mc_indx; 0 == a;) {
+                    n = Math.random().toString(16);
+                    var r = bmak.mn_cc + m.toString() + n, i = mn_h(r);
+                    if (0 == bdm(i, m))
+                        a = 1, e = get_cf_date() - o, bmak.mn_al.push(n), bmak.mn_tcl.push(e), bmak.mn_il.push(t), 0 == bmak.mn_mc_indx && (bmak.mn_lg.push(bmak.mn_abck), bmak.mn_lg.push(bmak.mn_ts), bmak.mn_lg.push(bmak.mn_psn), bmak.mn_lg.push(bmak.mn_cc), bmak.mn_lg.push(bmak.mn_cd.toString()), bmak.mn_lg.push(m.toString()), bmak.mn_lg.push(n), bmak.mn_lg.push(r), bmak.mn_lg.push(i));
+                    else if ((t += 1) % 1e3 == 0 && (e = get_cf_date() - o) > bmak.mn_stout)
+                        return setTimeout(mn_w(bmak), 1e3 + bmak.mn_stout);
+                }
+                bmak.mn_mc_indx += 1, bmak.mn_mc_indx < bmak.mn_mc_lmt ? yield mn_w(bmak) : (bmak.mn_mc_indx = 0, bmak.mn_lc[bmak.mn_lcl] = bmak.mn_cc, bmak.mn_ld[bmak.mn_lcl] = bmak.mn_cd, bmak.mn_lcl = bmak.mn_lcl + 1, bmak.mn_state = 0, bmak.mn_r[bmak.mn_abck + bmak.mn_psn] = yield mn_pr(bmak), bmak.aj_type = 8, bmak.aj_indx++);
+                return bmak;
+            }
+            catch (a) {
+                logger_1.default.red('exception on line ' + a.stack);
+            }
+        });
+    }
+    function mn_pr(bmak) {
+        return bmak.mn_al.join(",") + ";" + bmak.mn_tcl.join(",") + ";" + bmak.mn_il.join(",") + ";" + bmak.mn_lg.join(",") + ";";
+    }
+    /**
+    * ! {Math Functions}
+    */
+    function x2() {
+        var t = ff, a = t(98) + t(109) + t(97) + t(107), e = t(103) + t(101) + t(116) + t(95) + t(99) + t(102) + t(95) + t(100) + t(97) + t(116) + t(101), n = window[a][e], o = 0;
+        return "function" == typeof n && (o = n()), o;
+    }
+    function to(bmak) {
+        var a = get_cf_date() % 1e7;
+        bmak.d3 = a;
+        for (var t = a, e = 0; e < 5; e++) {
+            var n = parseInt(a / Math.pow(10, e)) % 10, o = n + 1, m = 'return a' + cc(n) + o + ';';
+            t = new Function('a', m)(t);
+        }
+        return t;
+    }
+    function toNew() {
+        var t = x2() % 1e7;
+        bmak.d3 = t;
+        for (var a = t, e = bmak.pi(bmak.ff(51)), n = 0; n < 5; n++) {
+            var o = bmak.pi(t / Math.pow(10, n)) % 10, m = o + 1;
+            op = cc(o), a = op(a, m);
+        }
+        return a * e;
+    }
+    function cc(a) {
+        var t = a % 4;
+        2 == t && (t = 3);
+        var e = 42 + t;
+        return String.fromCharCode(e);
+    }
+    function ff(t) {
+        return String.fromCharCode(t);
+    }
+    function cal_dis(t) {
+        var a = t[0] - t[1], e = t[2] - t[3], n = t[4] - t[5], o = Math.sqrt(a * a + e * e + n * n);
+        return Math.floor(o);
+    }
+    function jrs(t) {
+        for (var a = Math.floor(1e5 * Math.random() + 1e4), e = String(t * a), n = 0, o = [], m = e.length >= 18; o.length < 6;)
+            o.push(parseInt(e.slice(n, n + 2))), n = m ? n + 3 : n + 2;
+        return [a, cal_dis(o)];
+    }
+    //Used for determining how long challenge cookie verification loops for
+    function mn_h(a) {
+        var t = 1732584193, e = 4023233417, n = 2562383102, o = 271733878, m = 3285377520, r = encode_utf8(a), i = 8 * r.length;
+        r += String.fromCharCode(128);
+        for (var c = r.length / 4 + 2, b = Math.ceil(c / 16), d = new Array(b), k = 0; k < b; k++) {
+            d[k] = new Array(16);
+            for (var s = 0; s < 16; s++)
+                d[k][s] = r.charCodeAt(64 * k + 4 * s) << 24 | r.charCodeAt(64 * k + 4 * s + 1) << 16 | r.charCodeAt(64 * k + 4 * s + 2) << 8 | r.charCodeAt(64 * k + 4 * s + 3) << 0;
+        }
+        var l = i / Math.pow(2, 32);
+        d[b - 1][14] = Math.floor(l), d[b - 1][15] = 4294967295 & i;
+        for (var u = 0; u < b; u++) {
+            for (var _, f, p, v = new Array(80), h = t, g = e, w = n, y = o, C = m, k = 0; k < 80; k++)
+                v[k] = k < 16 ? d[u][k] : rotate_left(v[k - 3] ^ v[k - 8] ^ v[k - 14] ^ v[k - 16], 1), k < 20 ? (_ = g & w | ~g & y, f = 1518500249) : k < 40 ? (_ = g ^ w ^ y, f = 1859775393) : k < 60 ? (_ = g & w | g & y | w & y, f = 2400959708) : (_ = g ^ w ^ y, f = 3395469782), p = rotate_left(h, 5) + _ + C + f + v[k], C = y, y = w, w = rotate_left(g, 30), g = h, h = p;
+            t += h, e += g, n += w, o += y, m += C;
+        }
+        return [t >> 24 & 255, t >> 16 & 255, t >> 8 & 255, 255 & t, e >> 24 & 255, e >> 16 & 255, e >> 8 & 255, 255 & e, n >> 24 & 255, n >> 16 & 255, n >> 8 & 255, 255 & n, o >> 24 & 255, o >> 16 & 255, o >> 8 & 255, 255 & o, m >> 24 & 255, m >> 16 & 255, m >> 8 & 255, 255 & m];
+    }
+    function getFloatVal(a) {
+        try {
+            if (-1 != chknull(a) && !isNaN(a)) {
+                var t = parseFloat(a);
+                if (!isNaN(t))
+                    return t.toFixed(2);
+            }
+        }
+        catch (a) { }
+        return -1;
+    }
+    /**
+     * ! {Support Functions}
+     */
+    function encode_utf8(a) {
+        return unescape(encodeURIComponent(a));
+    }
+    function rotate_left(a, t) {
+        return a << t | a >>> 32 - t;
+    }
+    function pi(a) {
+        return parseInt(a);
+    }
+    function bdm(a, t) {
+        for (var e = 0, n = 0; n < a.length; ++n)
+            e = (e << 8 | a[n]) >>> 0, e %= t;
+        return e;
+    }
+    function chknull(a) {
+        return null == a ? -1 : a;
+    }
+    ;
+    function od(a, t) {
+        try {
+            (a = a.toString()), (t = t.toString());
+            var e = [];
+            var n = t.length;
+            if (n > 0) {
+                for (var o = 0; o < a.length; o++) {
+                    var m = a.charCodeAt(o);
+                    var r = a.charAt(o);
+                    var i = t.charCodeAt(o % n);
+                    (m = rir(m, 47, 57, i)),
+                        m != a.charCodeAt(o) && (r = String.fromCharCode(m)),
+                        e.push(r);
+                }
+                if (e.length > 0)
+                    return e.join("");
+            }
+        }
+        catch (a) { }
+        return a;
+    }
+    function ab(a) {
+        if (null == a)
+            return -1;
+        for (var t = 0, e = 0; e < a.length; e++) {
+            var n = a.charCodeAt(e);
+            n < 128 && (t += n);
+        }
+        return t;
+    }
+    // font functions
+    function ats(t) {
+        for (var a = "", e = 0; e < t.length; e++)
+            a += 2 == t[e].toString(16).length ? t[e].toString(16) : "0" + t[e].toString(16);
+        return a;
+    }
+    function rotate_right(t, a) {
+        return t >>> a | t << 32 - a;
+    }
+    function mn_s(t) {
+        var a = [1116352408, 1899447441, 3049323471, 3921009573, 961987163, 1508970993, 2453635748, 2870763221,
+            3624381080, 310598401, 607225278, 1426881987, 1925078388, 2162078206, 2614888103, 3248222580,
+            3835390401, 4022224774, 264347078, 604807628, 770255983, 1249150122, 1555081692, 1996064986,
+            2554220882, 2821834349, 2952996808, 3210313671, 3336571891, 3584528711, 113926993, 338241895,
+            666307205, 773529912, 1294757372, 1396182291, 1695183700, 1986661051, 2177026350, 2456956037,
+            2730485921, 2820302411, 3259730800, 3345764771, 3516065817, 3600352804, 4094571909, 275423344,
+            430227734, 506948616, 659060556, 883997877, 958139571, 1322822218, 1537002063, 1747873779, 1955562222,
+            2024104815, 2227730452, 2361852424, 2428436474, 2756734187, 3204031479, 3329325298], e = 1779033703, n = 3144134277, o = 1013904242, m = 2773480762, r = 1359893119, i = 2600822924, c = 528734635, b = 1541459225, d = encode_utf8(t), s = 8 * d.length;
+        d += String.fromCharCode(128);
+        for (var k = d.length / 4 + 2, l = Math.ceil(k / 16), u = new Array(l), _ = 0; _ < l; _++) {
+            u[_] = new Array(16);
+            for (var f = 0; f < 16; f++)
+                u[_][f] = d.charCodeAt(64 * _ + 4 * f) << 24 | d.charCodeAt(64 * _ + 4 * f + 1) << 16 | d.charCodeAt(64 * _ + 4 * f + 2) << 8 | d.charCodeAt(64 * _ + 4 * f + 3) << 0;
+        }
+        var p = s / Math.pow(2, 32);
+        u[l - 1][14] = Math.floor(p), u[l - 1][15] = s;
+        for (var h = 0; h < l; h++) {
+            for (var v, g = new Array(64), w = e, y = n, E = o, S = m, C = r, v = i, M = c, x = b, _ = 0; _ < 64; _++) {
+                var j, A, L, P, T, F;
+                _ < 16 ? g[_] = u[h][_] : (j = rotate_right(g[_ - 15], 7) ^ rotate_right(g[_ - 15], 18) ^ g[_ - 15] >>> 3, A = rotate_right(g[_ - 2], 17) ^ rotate_right(g[_ - 2], 19) ^ g[_ - 2] >>> 10, g[_] = g[_ - 16] + j + g[_ - 7] + A), A = rotate_right(C, 6) ^ rotate_right(C, 11) ^ rotate_right(C, 25), L = C & v ^ ~C & M, P = x + A + L + a[_] + g[_], j = rotate_right(w, 2) ^ rotate_right(w, 13) ^ rotate_right(w, 22), T = w & y ^ w & E ^ y & E, F = j + T, x = M, M = v, v = C, C = S + P >>> 0, S = E, E = y, y = w, w = P + F >>> 0;
+            }
+            e += w, n += y, o += E, m += S, r += C, i += v, c += M, b += x;
+        }
+        return [e >> 24 & 255, e >> 16 & 255, e >> 8 & 255, 255 & e, n >> 24 & 255, n >> 16 & 255, n >> 8 & 255, 255 & n, o >> 24 & 255, o >> 16 & 255, o >> 8 & 255, 255 & o, m >> 24 & 255, m >> 16 & 255, m >> 8 & 255, 255 & m, r >> 24 & 255, r >> 16 & 255, r >> 8 & 255, 255 & r, i >> 24 & 255, i >> 16 & 255, i >> 8 & 255, 255 & i, c >> 24 & 255, c >> 16 & 255, c >> 8 & 255, 255 & c, b >> 24 & 255, b >> 16 & 255, b >> 8 & 255, 255 & b];
+    }
+    function calculateFontHash() {
+        return __awaiter(this, void 0, void 0, function* () {
+            const tt = yield getFontsHash();
+            return ats(mn_s(tt));
+        });
+    }
+    function getMeRandomElements(arrCopy, neededElements) {
+        var sourceArray = [...arrCopy];
+        var result = [];
+        for (var i = 0; i < neededElements; i++) {
+            var randomIndex = Math.floor(Math.random() * sourceArray.length);
+            result.push(sourceArray[randomIndex]);
+        }
+        return result;
+    }
+    function getRandom(arrCopy, n) {
+        var arr = [...arrCopy];
+        var result = new Array(n), len = arr.length, taken = new Array(len);
+        if (n > len)
+            throw new RangeError("getRandom: more elements taken than available");
+        while (n--) {
+            var x = Math.floor(Math.random() * len);
+            result[n] = arr[x in taken ? taken[x] : x];
+            taken[x] = --len in taken ? taken[len] : len;
+        }
+        return result;
+    }
+    // voices func
+    function voicesHash() {
+        var randomVoicesArray = getRandom(data_1.voices, lodash_1.default.random(4, data_1.voices.length));
+        var v = randomVoicesArray.join('');
+        return ats(mn_s(v));
+    }
+    function webGlExtentionsHash() {
+        var ext = getRandom(data_1.webglExt, lodash_1.default.random(30, data_1.webglExt.length)).sort();
+        var extentions = JSON.stringify(ext);
+        return [ats(mn_s(extentions)), ext.length];
+    }
+    function sd_debug(t) {
+        if (!bmak.js_post) {
+            var a = t;
+            "string" == typeof _sd_trace ? _sd_trace += a : _sd_trace = a;
+        }
+    }
+    function writeToFile(abck) {
+        fs_1.default.appendFile('footpatrol_abck.txt', abck, (e) => {
+            if (e)
+                throw e.message;
+        });
+    }
+}));
 // module.exports = init;
-
 // /* setInterval(() => */ init('dell', undefined, undefined) /*, 1000); */

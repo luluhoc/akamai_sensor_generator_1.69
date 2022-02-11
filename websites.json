@@ -54,7 +54,7 @@
 			"sec-fetch-site":"none",
 			"sec-fetch-user":"?1",
 			"upgrade-insecure-requests":"1",
-			"Host":"www.zalando.co.uk",
+			"Host":"www.zalando.pl",
 			"Connection":"keep-alive"
         },
         "valid_check": ["=~-1", "~-1~"],
