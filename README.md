@@ -1,4 +1,5 @@
 
+![YOOOOOOO](https://github.com/luluhoc/akamai_sensor_generator_1.69/blob/main/screenshot/Screenshot_3.png?raw=true)
 
 This is the updated version with WebGL extensions hash, fonts hash, speech API hashing, and many more, I have reverse-engineered the 1.69 version of the AKAMAI BOT MANAGER, also changed some code to TypeScript.
 
