@@ -519,61 +519,7 @@ app.on('ready', async () => {
 			})
 			
 			console.log(req.data)
-			
-			// if(cookie_counter >= 3){
-			// 	const firstReqLogin = await client.post("https://www.zalando.pl/sso/login", "original_uri=https%3A%2F%2Fwww.zalando.pl%2Fmyaccount%2F&original_request_id=xIQY4rnNqyf2QPOZ&view=login", {
-			// 		headers: {
-			// 			accept: "*/*",
-			// 			"accept-language": "en-US,en;q=0.9,pl;q=0.8",
-			// 			"content-type": "application/x-www-form-urlencoded",
-			// 			dpr: "1",
-			// 			"sec-ch-ua": '" Not;A Brand";v="99", "Google Chrome";v="97", "Chromium";v="97"',
-			// 			"user-agent":
-			// 				"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/97.0.4692.99 Safari/537.36",
-			// 			"sec-ch-ua-mobile": "?0",
-			// 			"sec-ch-ua-platform": '"Windows"',
-			// 			"sec-fetch-dest": "empty",
-			// 			"sec-fetch-mode": "cors",
-			// 			"sec-fetch-site": "same-origin",
-			// 			"sec-gpc": "1",
-			// 			"viewport-width": "390",
-			// 			"x-xsrf-token": xsrf,
-			// 			cookie: jar.toJSON().cookies.map(x => `${x.key}=${x.value}`).join("; "),
-			// 			Referer: "https://www.zalando.pl/",
-			// 			"Referrer-Policy": "strict-origin-when-cross-origin",
-			// 		},
-  		// 	});
-			// console.log(firstReqLogin.data);
-			// 	const logo = await client.post(
-			// 		"https://accounts.zalando.com/api/login",
-			// 		`{"email":"lucjan.grzesik@gmail.com","secret":"aLLegro123","request":${parsed.request}}`,
-			// 		{
-			// 			headers: {
-			// 				'sec-fetch-dest': 'empty',
-			// 				'authority': 'accounts.zalando.com',
-			// 				'user-agent': userAgent,
-			// 				"content-type": "application/json",
-			// 				'accept': '*/*',
-			// 				"sec-ch-ua-mobile": "?0",
-			// 				"sec-ch-ua-platform": '"iOS"',
-			// 				'origin': `https://accounts.zalando.com`,
-			// 				'sec-fetch-site': 'same-origin',
-			// 				'sec-fetch-mode': 'cors',
-			// 				'referer': urlLogin,
-			// 				Cookie: jar.toJSON().cookies.map(x => `${x.key}=${x.value}`).join("; "),
-			// 				'accept-encoding': 'gzip, deflate, br',
-			// 				'accept-language': 'en-US,en;q=0.9,fr;q=0.8,de;q=0.7',
-			// 				'dnt': '3',
-			// 				"viewport-width": "390",
-			// 				'x-csrf-token': csrf,
-			// 				"x-flow-id": "TL1GQGcDPfjGsqNI",
-			// 			},
-			// 			withCredentials: true,
-			// 		},
-			// 	);
-			// 	console.log(logo)
-			//  }
-		
+
 			const cookies = jar.toJSON().cookies;
 			var abck = cookies.find(x => x.key === "_abck")?.value;
 			var verify = verify_abck(abck, site, true);
