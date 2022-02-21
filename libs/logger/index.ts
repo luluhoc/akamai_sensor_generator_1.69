@@ -1,5 +1,3 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
 const Logger = function () { };
 Logger.prototype.green = function success(message) {
     console.log(`[${new Date().toISOString()}] \x1b[32m${message}\x1b[0m`);
@@ -18,5 +16,6 @@ Logger.prototype.yellow = function warn(message) {
 };
 Logger.prototype.white = function normal(message) {
     console.log(`[${new Date().toISOString()}] \x1b[37m${message}\x1b[0m`);
-};
-exports.default = new Logger();
+}
+
+export default new Logger();

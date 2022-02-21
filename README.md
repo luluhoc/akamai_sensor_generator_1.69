@@ -1,5 +1,16 @@
+
+![YOOOOOOO](https://github.com/luluhoc/akamai_sensor_generator_1.69/blob/main/screenshot/Screenshot_3.png?raw=true)
+
+This is the updated version with WebGL extensions hash, fonts hash, speech API hashing,GPU hash and model, and many more, I have reverse-engineered the 1.69 version of the AKAMAI BOT MANAGER, also changed some code to TypeScript.
+
+The script is currently generating the cookie for iPhone.
+
+FUCKAKAMAI
+===
 # Akamai Sensor Generator
-This repository is for research purposes only. It is a functional Akamai sensor generator, however is on version 1.52 of Akamai Anti-bot. In order to function on the newest Akamai version, it must be revamped, and some portions must be rewritten.
+This repository is for research purposes only. It is a functional Akamai sensor generator, however is on version 1.69 of Akamai Anti-bot. In order to function on the newest Akamai version, it must be revamped, and some portions must be rewritten.
+
+
 
 ## Setup
 1. Clone the repository
@@ -25,4 +36,5 @@ This Sensor generator is in fact, considered outdated. Akamai implemented ja3 ss
 P.S. It is missing the MACT function for mouse tracking. For any relevant tests you can replace that function with [Ghost cursor](https://www.npmjs.com/package/ghost-cursor).
 
 ## Reflections
-Thank you to [Eric](https://github.com/ericz99) and [Zed](https://github.com/zedd3v) for making this possible. This was a fun project and hopefully will find new life in guiding others.
+Thank you to [Eric](https://github.com/ericz99) and [Zed](https://github.com/zedd3v) for making this possible. This was a fun project and hopefully will find new life in guiding others. Thanks to [HypePhilosophy](https://github.com/HypePhilosophy/Akamai_Sensor_Generator)
+
